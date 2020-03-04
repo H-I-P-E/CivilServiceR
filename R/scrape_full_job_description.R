@@ -1,9 +1,6 @@
 
-job_url = "https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=b3duZXJ0eXBlPWZhaXImdXNlcnNlYXJjaGNvbnRleHQ9OTQ3NzE3NDEmcGFnZWNsYXNzPUpvYnMmc2VhcmNoX3NsaWNlX2N1cnJlbnQ9NSZqb2JsaXN0X3ZpZXdfdmFjPTE2Njc0MDcmb3duZXI9NTA3MDAwMCZwYWdlYWN0aW9uPXZpZXd2YWNieWpvYmxpc3QmY3NvdXJjZT1jc2ZzZWFyY2gmcmVxc2lnPTE1ODIxMjkxODMtYzdiMzM1NDM3ZDY4NzEzMTgyY2QyYWEzMzkzYmE3N2I2Yjk4NGE4Zg=="
-
-
 scrape_full_job <- function(job_url, session){
-
+  print(job_url)
   job_url_session <- rvest::jump_to(session, job_url)
   job_html <- xml2::read_html(job_url_session)
 
@@ -33,7 +30,9 @@ scrape_full_job <- function(job_url, session){
       stringr::str_trim()
 
     narrow_data <- narrow_data %>%
-      dplyr::mutate(job_ref = reference_number)
+      dplyr::mutate(job_ref = reference_number) %>%
+      dplyr::mutate_all(as.character()) %>%
+      dplyr::select(job_ref, variable, value)
 
     return(narrow_data)
 }

@@ -1,5 +1,5 @@
 #' @title Scrape those adverts
-#' @description
+#' @description Scrapes adverts
 #' @param civil_service_user Do you have a Civil Service details file in this project?
 #' @export
 #' @examples
@@ -7,10 +7,10 @@
 
 library(magrittr)
 
-scrape_adverts <- function(session, existing_refs){
+scrape_adverts <- function(session){
 
-  search_url = "https://civilservicejobs.service.gov.uk/csr/index.cgi?SID=cGFnZWFjdGlvbj1zZWFyY2hieWNvbnRleHRpZCZ1c2Vyc2VhcmNoY29udGV4dD05NDc3MTc0MSZ1cGRhdGVzZWFyY2hzb3J0b3JkZXI9MSZwYWdlY2xhc3M9Sm9icyZrZXk9ZmFpciZyZXFzaWc9MTU4MjEyNTA5Ni1lOGQ2NTg4MjVjODIxZTJiN2IwMjZhYTdmNDE1NjQ2NDdhNTM5ZmEy&new_search_sort_order=newest&reqsig=1582125101-5ec883a6b7e02d8c999ca0315e60224ce5901b99"
-  search_pages <- CivilServiceR::get_all_search_pages(session, search_url)[1:5]
+  search_url = "https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=YWdlbnRfY29kZT0xNjU5NTc5JmNzb3VyY2U9Y3NhbGVydHNlYXJjaCZ1c2Vyc2VhcmNoY29udGV4dD0mb3duZXJ0eXBlPWZhaXImc3RvcmVzZWFyY2hjb250ZXh0PTEmcGFnZWFjdGlvbj1zZWFyY2hieWFnZW50Y29kZSZwYWdlY2xhc3M9Sm9icyZvd25lcj01MDcwMDAwJnJlcXNpZz0xNTgzMzE3ODg3LTZlOTlmNzg1MGIyZmZmNWQ5NmRjMGMzYmU1MGY2NTY3MWIxZTE4MzQ="
+  search_pages <- CivilServiceR::get_all_search_pages(session, search_url)[1:2]
 
   results <- NULL
   for(page in search_pages){
@@ -23,7 +23,7 @@ scrape_adverts <- function(session, existing_refs){
 }
 
 get_all_search_pages <- function(my_session, search_url){
-  url_session <- rvest::jump_to(session, search_url)
+  url_session <- rvest::jump_to(my_session, search_url)
   search_html <- xml2::read_html(url_session)
   xpath = "//div//div//div//a"
   nodes <- rvest::html_nodes(search_html, xpath =xpath)
@@ -44,7 +44,7 @@ get_all_search_pages <- function(my_session, search_url){
 scrape_search_page <- function(my_session, search_page_url){
   print("scraping page")
   print(search_page_url)
-  url_session <- rvest::jump_to(session, search_page_url)
+  url_session <- rvest::jump_to(my_session, search_page_url)
   search_html <- xml2::read_html(url_session)
   xpath <- "//ul//li//div | //ul//li//div//a"
   nodes <- rvest::html_nodes(search_html, xpath =xpath)
