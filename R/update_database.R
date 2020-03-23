@@ -41,6 +41,7 @@ save_new_data <- function(existing_refs,
   max_ref <- as.character(max(as.numeric(new_refs$job_ref), na.rm = T))
   min_ref <- as.character(min(as.numeric(new_refs$job_ref), na.rm = T))
 
+  #min and max don't really matter here -  they are just a way of creating a unique file name
   new_file_name <- lubridate::today() %>%
     as.character() %>%
     paste(max_ref, min_ref, ".rds", sep = "_")
@@ -77,11 +78,13 @@ get_new_data <- function(session, existing_refs){
     dplyr::mutate(job_ref = as.character(stringr::str_replace(refcode,"Reference: ", ""))) %>%
     dplyr::filter(!(job_ref %in% existing_refs))
 
-  new_job_urls <- head(basic_new_data) %>%
+  new_job_urls <- basic_new_data %>%
     dplyr::pull(link)
 
+  new_advert_count = length(new_job_urls)
+  i <- 1
   all_jobs_data <- new_job_urls %>%
-    purrr::map(CivilServiceR::scrape_full_job, session) %>%
+    purrr::map(CivilServiceR::scrape_full_job, session, new_advert_count, i) %>%
     purrr::reduce(dplyr::bind_rows)
   return(all_jobs_data)
 }

@@ -10,13 +10,17 @@ library(magrittr)
 scrape_adverts <- function(session){
 
   search_url = "https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=YWdlbnRfY29kZT0xNjU5NTc5JmNzb3VyY2U9Y3NhbGVydHNlYXJjaCZ1c2Vyc2VhcmNoY29udGV4dD0mb3duZXJ0eXBlPWZhaXImc3RvcmVzZWFyY2hjb250ZXh0PTEmcGFnZWFjdGlvbj1zZWFyY2hieWFnZW50Y29kZSZwYWdlY2xhc3M9Sm9icyZvd25lcj01MDcwMDAwJnJlcXNpZz0xNTgzMzE3ODg3LTZlOTlmNzg1MGIyZmZmNWQ5NmRjMGMzYmU1MGY2NTY3MWIxZTE4MzQ="
-  search_pages <- CivilServiceR::get_all_search_pages(session, search_url)[1:2]
+  search_pages <- CivilServiceR::get_all_search_pages(session, search_url)
 
   results <- NULL
+  i=1
   for(page in search_pages){
-    data <- scrape_search_page(session, page)
-    results = rbind(results, data, fill = T )
+    print(paste0("Scraping page: ", as.character(i), " of ", as.character(length(search_pages))))
+    data <- scrape_search_page(session, page) %>%
+      dplyr::mutate_all(as.character)
+    results = dplyr::bind_rows(results, data)
     #check if I already have them
+    i = i+1
   }
   return(results)
 
@@ -42,8 +46,6 @@ get_all_search_pages <- function(my_session, search_url){
 }
 
 scrape_search_page <- function(my_session, search_page_url){
-  print("scraping page")
-  print(search_page_url)
   url_session <- rvest::jump_to(my_session, search_page_url)
   search_html <- xml2::read_html(url_session)
   xpath <- "//ul//li//div | //ul//li//div//a"
@@ -69,7 +71,7 @@ scrape_search_page <- function(my_session, search_page_url){
     dplyr::select(variable, text, row) %>%
     tidyr::spread(variable, text) %>%
     dplyr::mutate_all(as.character())
-  data$link = links$job_link
+  data$link = as.character(links$job_link)
 
   return(data)
 }
