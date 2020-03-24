@@ -76,15 +76,26 @@ get_new_data <- function(session, existing_refs){
 
   basic_new_data <- basic_data %>%
     dplyr::mutate(job_ref = as.character(stringr::str_replace(refcode,"Reference: ", ""))) %>%
-    dplyr::filter(!(job_ref %in% existing_refs))
+    dplyr::filter(!(job_ref %in% existing_refs$job_ref)) %>%
+    dplyr::select(-row)
 
   new_job_urls <- basic_new_data %>%
     dplyr::pull(link)
 
+  narrow_new_data <- basic_new_data %>%
+    tidyr::pivot_longer(cols = -tidyr::one_of("job_ref"), names_to = "variable", values_to = "value")
+
   new_advert_count = length(new_job_urls)
-  i <- 1
-  all_jobs_data <- new_job_urls %>%
+  i <<- 1
+
+  test <- readRDS(file.path(data_folder, "2020-03-23_48132_5289_.rds"))
+
+  full_jobs_data <- new_job_urls %>%
     purrr::map(CivilServiceR::scrape_full_job, session, new_advert_count, i) %>%
     purrr::reduce(dplyr::bind_rows)
+
+  all_jobs_data <- full_jobs_data %>%
+    dplyr::bind_rows(narrow_new_data)
+
   return(all_jobs_data)
 }
