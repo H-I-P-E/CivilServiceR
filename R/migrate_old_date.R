@@ -5,8 +5,10 @@ save_old_data <- function(){
 path_to_old_basic <- "C:\\Users\\tobias.jolly\\Documents\\civil_service_jobs\\data\\basic_advert_data.csv"
 path_to_old_full <- "C:\\Users\\tobias.jolly\\Documents\\civil_service_jobs\\data\\full_advert_data.csv"
 
-if(file.exists(existing_refs_path)){
-  existing_refs <- readRDS(existing_refs_path)
+my_paths <- CivilServiceR::get_paths()
+
+if(file.exists(my_paths$existing_refs_path)){
+  existing_refs <- readRDS(my_paths$existing_refs_path)
 } else {
   existing_refs <- NULL
 }
@@ -38,23 +40,19 @@ narrow_full <- readr::read_csv(path_to_old_basic) %>%
   tidyr::pivot_longer(names_to = "variable", cols = -tidyr::one_of("job_ref")) %>%
   dplyr::filter(!job_ref %in% existing_refs$job_ref)
 
-data_folder <- "data"
-parent_folder_path <- here::here()
-data_folder_path <- here::here(data_folder)
-existing_refs_path <- file.path(data_folder_path, "existing_refs.rds")
 
 old_data_name <- lubridate::today() %>%
   as.character() %>%
   paste("_old_data",".rds", sep = "")
 
-new_file_path = file.path(data_folder_path, old_data_name)
+new_file_path = file.path(my_paths$data_folder_path, old_data_name)
 
 new_refs <- narrow_full %>%
   dplyr::select(job_ref) %>%
   unique()
 
 if (is.null(existing_refs)){
-  saveRDS(new_refs, existing_refs_path)
+  saveRDS(new_refs, my_paths$existing_refs_path)
 } else {
   existing_refs <- dplyr::bind_rows(existing_refs, new_refs)
   saveRDS(existing_refs, existing_refs_path)

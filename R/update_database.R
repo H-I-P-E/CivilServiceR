@@ -1,21 +1,33 @@
+
+get_paths <- function(){
+  data_folder <- "data"
+  parent_folder_path <- here::here()
+  data_folder_path <- here::here(data_folder)
+  existing_refs_path <- file.path(data_folder_path, "existing_refs.rds")
+
+  paths <- list(
+    data_folder = data_folder,
+    parent_folder_path = parent_folder_path,
+    data_folder_path = data_folder_path,
+    existing_refs_path = existing_refs_path
+  )
+  return(paths)
+}
+
 update_database <- function(civil_service_user = T){
   if(civil_service_user){
     session = CivilServiceR::login('user_name_and_password.R')
   } else {
     session = NULL
   }
+  my_paths <- get_paths()
 
-  data_folder <- "data"
-  parent_folder_path <- here::here()
-  data_folder_path <- here::here(data_folder)
-  existing_refs_path <- file.path(data_folder_path, "existing_refs.rds")
-
-  if (!file.exists(data_folder)){
-    dir.create(file.path(parent_folder_path, data_folder))
+  if (!file.exists(my_paths$data_folder)){
+    dir.create(file.path(my_paths$parent_folder_path, my_paths$data_folder))
   }
 
-  if(file.exists(existing_refs_path)){
-    existing_refs <- readRDS(existing_refs_path)
+  if(file.exists(my_paths$existing_refs_path)){
+    existing_refs <- readRDS(my_paths$existing_refs_path)
   } else {
     existing_refs <- NULL
   }
@@ -23,8 +35,8 @@ update_database <- function(civil_service_user = T){
   new_data <- CivilServiceR::get_new_data(session, existing_refs)
 
   CivilServiceR::save_new_data(existing_refs,
-                               existing_refs_path,
-                               data_folder_path,
+                               my_paths$existing_refs_path,
+                               my_paths$data_folder_path,
                                new_data
   )
 }
@@ -57,6 +69,10 @@ save_new_data <- function(existing_refs,
     saveRDS(existing_refs, existing_refs_path)
   }
 }
+
+
+
+
 
 login <- function(username_and_password_file){
   source(username_and_password_file)
