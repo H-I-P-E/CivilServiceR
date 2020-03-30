@@ -1,7 +1,6 @@
 
-scrape_full_job <- function(job_url, session, new_advert_count, i){
+scrape_full_job <- function(job_url, i, session, new_advert_count){
   print(paste0("Scraping job: ", as.character(i), " of ", as.character(new_advert_count)))
-  i <<- i + 1
   job_url_session <- rvest::jump_to(session, job_url)
   job_html <- xml2::read_html(job_url_session)
 

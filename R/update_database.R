@@ -85,13 +85,11 @@ get_new_data <- function(session, existing_refs){
   narrow_new_data <- basic_new_data %>%
     tidyr::pivot_longer(cols = -tidyr::one_of("job_ref"), names_to = "variable", values_to = "value")
 
-  new_advert_count = length(new_job_urls)
-  i <<- 1
-
-  test <- readRDS(file.path(data_folder, "2020-03-23_48132_5289_.rds"))
+  new_advert_count <- length(new_job_urls)
+  i <- seq(1,new_advert_count)
 
   full_jobs_data <- new_job_urls %>%
-    purrr::map(CivilServiceR::scrape_full_job, session, new_advert_count, i) %>%
+    purrr::map2(i, CivilServiceR::scrape_full_job, session, new_advert_count) %>%
     purrr::reduce(dplyr::bind_rows)
 
   all_jobs_data <- full_jobs_data %>%
