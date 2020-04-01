@@ -1,18 +1,5 @@
 
-get_paths <- function(){
-  data_folder <- "data"
-  parent_folder_path <- here::here()
-  data_folder_path <- here::here(data_folder)
-  existing_refs_path <- file.path(data_folder_path, "existing_refs.rds")
 
-  paths <- list(
-    data_folder = data_folder,
-    parent_folder_path = parent_folder_path,
-    data_folder_path = data_folder_path,
-    existing_refs_path = existing_refs_path
-  )
-  return(paths)
-}
 
 update_database <- function(civil_service_user = T){
   if(civil_service_user){
@@ -92,8 +79,7 @@ get_new_data <- function(session, existing_refs){
 
   basic_new_data <- basic_data %>%
     dplyr::mutate(job_ref = as.character(stringr::str_replace(refcode,"Reference: ", ""))) %>%
-    dplyr::filter(!(job_ref %in% existing_refs$job_ref)) %>%
-    dplyr::select(-row)
+    dplyr::filter(!(job_ref %in% existing_refs$job_ref))
 
   new_job_urls <- basic_new_data %>%
     dplyr::pull(link)
@@ -112,4 +98,20 @@ get_new_data <- function(session, existing_refs){
     dplyr::bind_rows(narrow_new_data)
 
   return(all_jobs_data)
+}
+
+
+get_paths <- function(){
+  data_folder <- "data"
+  parent_folder_path <- here::here()
+  data_folder_path <- here::here(data_folder)
+  existing_refs_path <- file.path(data_folder_path, "existing_refs.rds")
+
+  paths <- list(
+    data_folder = data_folder,
+    parent_folder_path = parent_folder_path,
+    data_folder_path = data_folder_path,
+    existing_refs_path = existing_refs_path
+  )
+  return(paths)
 }

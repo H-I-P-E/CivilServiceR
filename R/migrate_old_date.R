@@ -30,7 +30,7 @@ narrow_full <- readr::read_csv(path_to_old_basic) %>%
                    title = job_title,
                    link = link,
                    closingdate = closing_date,
-                   job_id = job_id)%>%
+                   date_downloaded = date_downloaded) %>%
   dplyr::filter(!is.na(job_id)) %>%
   dplyr::left_join(narrow_adverts , c("job_id" = "job_ref" )) %>%
   dplyr::mutate(job_ref = ifelse(is.na(`Reference number`),
@@ -51,11 +51,12 @@ new_refs <- narrow_full %>%
   dplyr::select(job_ref) %>%
   unique()
 
+
 if (is.null(existing_refs)){
   saveRDS(new_refs, my_paths$existing_refs_path)
 } else {
   existing_refs <- dplyr::bind_rows(existing_refs, new_refs)
-  saveRDS(existing_refs, existing_refs_path)
+  saveRDS(existing_refs, my_paths$existing_refs_path)
 }
 
 saveRDS(narrow_full, new_file_path)

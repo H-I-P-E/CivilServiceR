@@ -51,27 +51,30 @@ scrape_search_page <- function(my_session, search_page_url){
   xpath <- "//ul//li//div | //ul//li//div//a"
   nodes <- rvest::html_nodes(search_html, xpath =xpath)
   node_details <- data.frame(
-    job_link = as.character(rvest::html_attr(nodes,'href')),
+    link = as.character(rvest::html_attr(nodes,'href')),
     node_class = as.character(rvest::html_attr(nodes,'class')),
     text = as.character(rvest::html_text(nodes)))
 
+  node_details$row <- seq.int(nrow(node_details))
+
   links <- node_details %>%
-    dplyr::filter(!is.na(job_link)) %>%
-    dplyr::select(-node_class) %>%
-    dplyr::filter(job_link != "https://www.gov.uk",
-           job_link != "/csr/index.cgi")
+    dplyr::filter(!is.na(link)) %>%
+    dplyr::select(row, link) %>%
+    dplyr::filter(link != "https://www.gov.uk",
+                  link != "/csr/index.cgi") %>%
+    dplyr::mutate(row = as.character(as.numeric(row)-1))
 
   data<- node_details %>%
     dplyr::mutate(is_data = stringr::str_detect(node_class,"search\\-results\\-job\\-box")) %>%
     dplyr::filter(is_data & text != "") %>%
     dplyr::mutate(variable = stringr::str_replace(node_class, "search-results-job-box-", "")) %>%
-    dplyr::mutate(row = row.names(.)) %>%
     dplyr::mutate(row = ifelse(variable == "title", row, NA_character_)) %>%
     tidyr::fill(row) %>%
     dplyr::select(variable, text, row) %>%
     tidyr::spread(variable, text) %>%
-    dplyr::mutate_all(as.character())
-  data$link = as.character(links$job_link)
+    dplyr::mutate_all(as.character()) %>%
+    dplyr::left_join(links, c("row" = "row" )) %>%
+    dplyr::select(-row)
 
   return(data)
 }

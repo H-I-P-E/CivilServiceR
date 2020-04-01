@@ -1,4 +1,3 @@
-
 scrape_full_job <- function(job_url, i, session, new_advert_count){
   print(paste0("Scraping job: ", as.character(i), " of ", as.character(new_advert_count)))
   job_url_session <- rvest::jump_to(session, job_url)
@@ -29,9 +28,14 @@ scrape_full_job <- function(job_url, i, session, new_advert_count){
       dplyr::pull(value) %>%
       stringr::str_trim()
 
+    date_run <- tibble::tibble(job_ref =reference_number,
+                      variable = "date_downloaded",
+                      value = (as.character(lubridate::today())))
+
     narrow_data <- narrow_data %>%
-      dplyr::mutate(job_ref = reference_number) %>%
-      dplyr::mutate_all(as.character()) %>%
+      dplyr::mutate(job_ref = reference_number)  %>%
+      dplyr::mutate_all(as.character())%>%
+      dplyr::bind_rows(date_run) %>%
       dplyr::select(job_ref, variable, value)
 
     return(narrow_data)
