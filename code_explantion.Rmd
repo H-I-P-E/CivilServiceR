@@ -1,0 +1,39 @@
+---
+title: "Scraping for an impactful Civil Service career"
+author: "Tobias Jolly - Cabinet Office"
+date: "☕&💻 - 3 April 2020"
+output: 
+  ioslides_presentation:
+    logo: images/HIPE_logo.png
+---
+
+<style>
+pre {
+  font-size: 40px;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Outline
+
+- Outline
+- HIPE
+- The data
+- The code
+- Questions
+
+## What is HIPE?
+
+<div class="centered">HIPE’s mission:</div>
+<div class="centered">"To helps civil servants do the most good they can, in government and beyond"</div>
+
+
+## Slide with Plot
+
+```{r pressure}
+plot(pressure)
+```
+
