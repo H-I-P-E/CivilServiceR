@@ -36,8 +36,7 @@ get_all_search_pages <- function(my_session, search_url){
     alt = rvest::html_attr(nodes,'alt'))
 
   links <- node_details %>%
-    dplyr::mutate(search = stringr::str_detect(alt, "Go to search")) %>%
-    dplyr::filter(search)%>%
+    dplyr::filter(stringr::str_detect(alt, "Go to search")) %>%
     dplyr::pull(link) %>%
     unique() %>%
     as.character()

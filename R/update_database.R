@@ -1,6 +1,4 @@
 
-
-
 update_database <- function(civil_service_user = T){
   if(civil_service_user){
     session = CivilServiceR::login('user_name_and_password.R')
@@ -99,7 +97,6 @@ get_new_data <- function(session, existing_refs){
 
   return(all_jobs_data)
 }
-
 
 get_paths <- function(){
   data_folder <- "data"

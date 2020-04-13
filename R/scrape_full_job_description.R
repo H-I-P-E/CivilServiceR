@@ -1,10 +1,11 @@
-scrape_full_job <- function(job_url, i, session, new_advert_count){
+scrape_full_job <- function(job_url, i, my_session, new_advert_count){
   print(paste0("Scraping job: ", as.character(i), " of ", as.character(new_advert_count)))
-  job_url_session <- rvest::jump_to(session, job_url)
+  job_url_session <- rvest::jump_to(my_session, job_url)
   job_html <- xml2::read_html(job_url_session)
 
+
   basic_info_css <- '.vac_display_field_value , h3'
-  nodes <- basic_info_css <- rvest::html_nodes(job_html, css = basic_info_css)
+  nodes <- rvest::html_nodes(job_html, css = basic_info_css)
 
   as_data <- data.frame(type = rvest::html_name(nodes),
                         text = rvest::html_text(nodes)) %>%
