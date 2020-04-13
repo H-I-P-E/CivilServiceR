@@ -24,6 +24,12 @@ update_database <- function(civil_service_user = T){
                                my_paths$data_folder_path,
                                new_data
   )
+
+  cleaned_data <- CivilServiceR::clean_and_combine_raw_data(save_csv = T)
+
+
+  #Run regular analysis and tagging here or in cleaning function
+
 }
 
 save_new_data <- function(existing_refs,

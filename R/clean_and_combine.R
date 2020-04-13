@@ -1,11 +1,22 @@
 
 
-clean_and_combine_raw_data <- function(){
+clean_and_combine_raw_data <- function(save_in_app = T, save_csv = T){
   my_paths <- CivilServiceR::get_paths()
 
   all_cleaned_data <- list.files(my_paths$data_folder_path) %>%
     purrr::map(clean_data, my_paths$data_folder_path) %>%
     purrr::reduce(dplyr::bind_rows)
+
+  if(save_in_app){
+    dir.create(file.path("civil_service_jobs_explorer", "data"))
+    file_path <- "civil_service_jobs_explorer\\data\\cleaned_data.rds"
+    saveRDS(all_cleaned_data, file_path)
+  }
+  if(save_csv){
+    dir.create(file.path("civil_service_jobs_explorer", "data"))
+    file_path <- "civil_service_jobs_explorer\\data\\cleaned_data.csv"
+    readr::write_csv(all_cleaned_data, file_path)
+  }
 
   return(all_cleaned_data)
 

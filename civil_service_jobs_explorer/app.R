@@ -8,36 +8,41 @@
 #
 
 library(shiny)
-library(CivilServiceR)
+library(DT)
 
-download_more_data = T
-internal = T
+stages <- c("External")
 
-if(download_more_data){
-  CivilServiceR::update_database()
-}
+data <- readRDS("data\\cleaned_data.rds") %>%
+  dplyr::filter(stage %in% stages)
 
-data <- CivilServiceR::clean_data()
+grades <- unique(data$grade)
+departments <- unique(data$department)
+
+months_in_data <- as.integer((max(data$date_downloaded, na.rm = T) -
+                       min(data$date_downloaded, na.rm = T))/30.44)
+#role_type
+#policy area
+#currently available
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
 
    # Application title
-   titlePanel("Old Faithful Geyser Data"),
+   titlePanel("HIPE job explorer"),
 
    # Sidebar with a slider input for number of bins
    sidebarLayout(
       sidebarPanel(
-         sliderInput("bins",
-                     "Number of bins:",
-                     min = 1,
-                     max = 50,
-                     value = 30)
+        selectInput("grade_select", "Grade", grades, selected = NULL, multiple = TRUE,
+                    selectize = TRUE, width = NULL, size = NULL),
+        selectInput("dept_select", "Department", departments, selected = NULL, multiple = TRUE,
+                    selectize = TRUE, width = NULL, size = NULL),
+        textOutput("text_description")
       ),
 
       # Show a plot of the generated distribution
       mainPanel(
-         plotOutput("distPlot")
+        DT::dataTableOutput("mytable")
       )
    )
 )
@@ -45,13 +50,28 @@ ui <- fluidPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
 
-   output$distPlot <- renderPlot({
-      # generate bins based on input$bins from ui.R
-      x    <- faithful[, 2]
-      bins <- seq(min(x), max(x), length.out = input$bins + 1)
+  filtered <- reactive({
 
-      # draw the histogram with the specified number of bins
-      hist(x, breaks = bins, col = 'darkgray', border = 'white')
+    if(!is.null(input$grade_select)){
+      data <-  dplyr::filter(data, grade %in% input$grade_select)}
+
+    if(!is.null( input$dept_select)){
+      data <-  dplyr::filter(data, department %in% input$dept_select)}
+
+    data <- data %>%
+      tidyr::replace_na(list(number_of_posts = 1))
+
+  })
+
+   output$mytable <- DT::renderDataTable({filtered()})
+
+   output$text_description <- renderText({
+
+     jobs <- sum(filtered()$number_of_posts, na.rm= T)
+     rate <- as.integer(jobs/months_in_data)
+
+     paste0("In the past ", months_in_data, " months, there have been ",jobs, " posts matching your search criteria,
+            this is a rate of ", rate, " posts per month")
    })
 }
 
