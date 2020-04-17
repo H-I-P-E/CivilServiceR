@@ -12,7 +12,7 @@ library(DT)
 
 stages <- c("External")
 
-data <- readRDS("data\\cleaned_data.rds") %>%
+data <- readRDS(".//data//cleaned_data.rds") %>%
   dplyr::filter(stage %in% stages)
 
 grades <- unique(data$grade)
@@ -37,7 +37,7 @@ ui <- fluidPage(
                     selectize = TRUE, width = NULL, size = NULL),
         selectInput("dept_select", "Department", departments, selected = NULL, multiple = TRUE,
                     selectize = TRUE, width = NULL, size = NULL),
-        textOutput("text_description")
+        h3(textOutput("text_description"))
       ),
 
       # Show a plot of the generated distribution
@@ -63,15 +63,24 @@ server <- function(input, output) {
 
   })
 
-   output$mytable <- DT::renderDataTable({filtered()})
+   output$mytable <- DT::renderDataTable({
+     my_data <- filtered()
+     my_data %>%
+       dplyr::transmute(
+         Title = title,
+         Department = department,
+         Grade = grade,
+         `Closing date` = closing_date
+       )
+     })
 
-   output$text_description <- renderText({
+   output$text_description <- renderText ({
 
      jobs <- sum(filtered()$number_of_posts, na.rm= T)
      rate <- as.integer(jobs/months_in_data)
 
-     paste0("In the past ", months_in_data, " months, there have been ",jobs, " posts matching your search criteria,
-            this is a rate of ", rate, " posts per month")
+     paste0("In the past ", prettyNum(months_in_data,big.mark=",",scientific=FALSE), " months, there have been ",prettyNum(jobs,big.mark=",",scientific=FALSE), " posts matching your search criteria,
+            this is a rate of ", prettyNum(rate,big.mark=",",scientific=FALSE), " posts per month")
    })
 }
 

@@ -106,6 +106,8 @@ get_new_data <- function(session, existing_refs){
 
 get_paths <- function(){
   data_folder <- "data"
+  meta_data = "meta_data"
+  clean_data = "clean_data"
   parent_folder_path <- here::here()
   data_folder_path <- here::here(data_folder)
   existing_refs_path <- file.path(data_folder_path, "existing_refs.rds")
@@ -114,7 +116,9 @@ get_paths <- function(){
     data_folder = data_folder,
     parent_folder_path = parent_folder_path,
     data_folder_path = data_folder_path,
-    existing_refs_path = existing_refs_path
+    existing_refs_path = existing_refs_path,
+    meta_data = meta_data,
+    clean_data = clean_data
   )
   return(paths)
 }
