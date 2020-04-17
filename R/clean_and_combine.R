@@ -90,7 +90,7 @@ find_values_in_column <- function(data, column, lookup_file, out_file){
 
   #Code that should be done one per row - should be linked to the scraping- that means all this code
 
-  #iterate over each row and find each of the possible values
+  #needs to look at the existing parsed job_refs before deciding whether to parse more
 
 
 }
