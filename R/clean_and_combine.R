@@ -110,7 +110,7 @@ clean_data <- function(file, my_paths, cleaned_files = NULL){
                                               stringr::str_split(.$closingdate, pattern = "\\s"),tail, 3),colllapse = " "),
                                           orders = "dmy"),format="%Y-%m-%d"), closing_date),
                   number_of_posts = as.numeric(`Number of posts`),
-                  approach = paste(purrr::map(stringr::str_split(.$stage, pattern = "\\s"),tail, 1),colllapse = " ")) %>%
+                  approach = paste(purrr::map(stringr::str_split(.$stage, pattern = "\\s"),tail, 1),colllapse = "")) %>%
     dplyr::select(-`Number of posts`, -closingdate, -stage)
 
   saveRDS(cleaned_data, cleaned_path)
