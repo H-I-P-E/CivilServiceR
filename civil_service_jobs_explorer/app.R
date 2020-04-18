@@ -9,6 +9,7 @@
 
 library(shiny)
 library(DT)
+library(shinythemes)
 
 approachs <- c("External")
 
@@ -43,18 +44,19 @@ key_words_data <- readRDS(".//data//key_words.rds") %>%
 key_words <- unique(key_words_data$`Cause area`)
 
 months_in_data <- as.integer((max(data$date_downloaded, na.rm = T) -
-                       min(data$date_downloaded, na.rm = T))/30.44)
+                                min(data$date_downloaded, na.rm = T))/30.44)
 #policy area
 #currently available
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
+  theme = "theme.css",
+  titlePanel(title=div(img(src="hipe_logo.png", style="width: 100px; float:right")," HIPE job search")),
+  h3("Search for impactful jobs in the Civil Service", align = "left"),
 
-   # Application title
-   titlePanel("HIPE job explorer"),
-
-   # Sidebar with a slider input for number of bins
-   sidebarLayout(
+  fluidRow(
+    # Sidebar with a slider input for number of bins
+    sidebarLayout(
       sidebarPanel(
         selectInput("cause_area", "I care about", key_words, selected = NULL, multiple = TRUE,
                     selectize = TRUE, width = NULL, size = NULL),
@@ -67,16 +69,23 @@ ui <- fluidPage(
         shiny::checkboxInput("select_current", "Show only current jobs", value = FALSE),
         h3(textOutput("text_description"))
       ),
-
-      # Show a plot of the generated distribution
       mainPanel(
         DT::dataTableOutput("mytable")
       )
-   )
+    )
+  )
 )
 
 # Define server logic required to draw a histogram
 server <- function(input, output) {
+
+  output$HIPE_logo <- renderImage({
+    list(src = './images/hipe_logo.png',
+         width = 100,
+         height = 100,
+         alt = "HIPE logo")
+  }, deleteFile = FALSE)
+
 
   filtered <- reactive({
 
@@ -101,31 +110,36 @@ server <- function(input, output) {
   })
 
   date_filtered <- reactive({
-  if(input$select_current){
-    my_data <- filtered()
-    data <-  dplyr::filter(my_data, closing_date > lubridate::today())}
-    data <- data
+    if(input$select_current){
+      my_data <- filtered()
+      data <-  dplyr::filter(my_data, closing_date > lubridate::today())}
+    data
   })
 
-   output$mytable <- DT::renderDataTable({
-     my_data <- date_filtered()
-     my_data %>%
-       dplyr::transmute(
-         Title = title,
-         Department = department,
-         Grade = grade,
-         `Closing date` = closing_date
-       )
-     })
+  output$mytable <- DT::renderDataTable({
+    my_data <- filtered()
 
-   output$text_description <- renderText ({
+    if(input$select_current){
+      my_data <- my_data %>%
+        dplyr::filter(closing_date > lubridate::today() & input$select_current)
+    }
+    my_data %>%
+      dplyr::transmute(
+        Title = title,
+        Department = department,
+        Grade = grade,
+        `Closing date` = closing_date
+      )
+  })
 
-     jobs <- sum(filtered()$number_of_posts, na.rm= T)
-     rate <- as.integer(jobs/months_in_data)
+  output$text_description <- renderText ({
 
-     paste0("In the past ", prettyNum(months_in_data,big.mark=",",scientific=FALSE), " months, there have been ",prettyNum(jobs,big.mark=",",scientific=FALSE), " posts matching your search criteria,
+    jobs <- sum(filtered()$number_of_posts, na.rm= T)
+    rate <- as.integer(jobs/months_in_data)
+
+    paste0("In the past ", prettyNum(months_in_data,big.mark=",",scientific=FALSE), " months, there have been ",prettyNum(jobs,big.mark=",",scientific=FALSE), " posts matching your search criteria,
             this is a rate of ", prettyNum(rate,big.mark=",",scientific=FALSE), " posts per month")
-   })
+  })
 }
 
 # Run the application
