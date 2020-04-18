@@ -1,6 +1,12 @@
+#' @title Clean and combine raw data
+#' @description The folder for the raw data is defined by the get paths function. This function loads that data
+#' then cleans it (reformats columns and extracts relevent data)
+#' @param save_in_app Should you save a new version of the cleaned data into the Shiny app folder?
+#' @param re_clean_all Should all raw data be put through the cleaning process or just the data that has not been cleaned thus far
+#' @export
 
 
-clean_raw_data <- function(save_in_app = T, re_clean_all = F){
+clean_and_combine_raw_data <- function(save_in_app = T, re_clean_all = F){
 
   my_paths <- CivilServiceR::get_paths()
 
@@ -11,32 +17,34 @@ clean_raw_data <- function(save_in_app = T, re_clean_all = F){
 
   cleaned_files = NULL
 
+  #the files contain job level data bases on results of the find_values_in_column function
   lookup_file_paths <- list("grades_data.rds",
-                            "roles_data.rds") %>%
+                            "roles_data.rds",
+                            "key_words.rds") %>%
     purrr::map(~file.path(my_paths$clean_data, . ))
 
   if(re_clean_all){
-    #delete all the lookups
+    #delete all the job level lookups if recleaning
     purrr::map(lookup_file_paths, file.remove)
   }
 
   if(!(re_clean_all|!file.exists(my_paths$cleaned_file_names_path))){
     cleaned_files <- readRDS(my_paths$cleaned_file_names_path)
-  }else{
-
   }
 
   cleaned_paths <- purrr::map(list.files(my_paths$data_folder_path),
-              clean_data, my_paths, cleaned_files)
+              clean_data, my_paths, cleaned_files) %>%
+    purrr::discard(is.null)
 
   all_cleaned_data <- purrr::map(cleaned_paths, readRDS) %>%
-    purrr::reduce(bind_rows)
+    purrr::reduce(dplyr::bind_rows)
 
   if(save_in_app){
+    #save all the cleaned data into the Shiny app
     dir.create(file.path("civil_service_jobs_explorer", "data"))
     file_path <- "civil_service_jobs_explorer\\data\\cleaned_data.rds"
     saveRDS(all_cleaned_data, file_path)
-    file.copy(lookup_file_paths, "civil_service_jobs_explorer\\data")
+    file.copy(lookup_file_paths, "civil_service_jobs_explorer\\data", overwrite = T)
   }
 
   return(all_cleaned_data)
@@ -44,36 +52,47 @@ clean_raw_data <- function(save_in_app = T, re_clean_all = F){
 }
 clean_data <- function(file, my_paths, cleaned_files = NULL){
 
+  #don't look at the existing refs file
   if(file %in% c("existing_refs.rds")){
     return(NULL)
   }
-
   cleaned_path <- file.path(my_paths$clean_data_folder, paste0("cleaned_", file))
 
+  #if it's already been cleaned - don't do it again
   if(file %in% cleaned_files){
     return(cleaned_path)
   }
 
+  print(paste0("Cleaning this file: ", file ))
+
   raw_data <- file.path(my_paths$data_folder, file) %>%
     readRDS() %>%
-    dplyr::filter(!is.na(value))
+    dplyr::filter(!is.na(value)) %>%
     dplyr::distinct(variable, job_ref, .keep_all = T)
-
-  my_columns <- c("title", "location", "date_downloaded", "stage", "department", "grade", "Number of posts", "closingdate", "Type of role")
 
   create_grades <- CivilServiceR::find_values_in_column(raw_data,
                                                         my_paths = my_paths,
+                                                        lower_case = F,
                                                         column = "grade",
                                                         lookup_file = "grade_lookup.csv",
                                                         out_file = "grades_data.rds")
 
   create_roles <- CivilServiceR::find_values_in_column(raw_data,
                                                        my_paths = my_paths,
+                                                       lower_case = F,
                                                        column = "Type of role",
-                                                       lookup_file = "role_lookup",
+                                                       lookup_file = "role_lookup.csv",
                                                        out_file = "roles_data.rds")
 
-  create_policy_areas <- find_policy_areas(raw_data)
+  create_policy_areas <- CivilServiceR::find_values_in_column(raw_data,
+                                                              my_paths = my_paths,
+                                                              lower_case = T,
+                                                              column = "Job description",
+                                                              lookup_file = "key_words.csv",
+                                                              out_file = "key_words.rds")
+
+  my_columns <- c("title", "location", "date_downloaded", "stage", "department", "grade", "Number of posts", "closingdate", "Type of role")
+
 
   cleaned_data <- raw_data %>%
     dplyr::filter(variable %in% my_columns) %>%
@@ -86,7 +105,7 @@ clean_data <- function(file, my_paths, cleaned_files = NULL){
                                           paste(
                                             purrr::map(
                                               stringr::str_split(.$closingdate, pattern = "\\s"),tail, 3),colllapse = " "),
-                                          orders = "dmy"),format="%Y-%m-%d")),
+                                          orders = "dmy"),format="%Y-%m-%d"), closing_date),
                   number_of_posts = as.numeric(`Number of posts`),
                   approach = paste(purrr::map(stringr::str_split(.$stage, pattern = "\\s"),tail, 1),colllapse = " ")) %>%
     dplyr::select(-`Number of posts`, -closingdate, -stage)
@@ -100,16 +119,16 @@ clean_data <- function(file, my_paths, cleaned_files = NULL){
     existing_cleaned_files <- readRDS(my_paths$cleaned_file_names_path)
   }
 
-  new_cleaned_files <- c(cleaned_path, existing_cleaned_files)
+  new_cleaned_files <- c(file, existing_cleaned_files)
   saveRDS(new_cleaned_files, my_paths$cleaned_file_names_path)
 
   return(cleaned_path)
 }
 
 
-find_values_in_column <- function(data, my_paths, column, lookup_file, out_file){
+find_values_in_column <- function(data, my_paths, lower_case = F, column, lookup_file, out_file){
   lookup_path <- file.path(my_paths$meta_data_folder, lookup_file)
-  lookup <- readr::read_csv(lookup_path)
+  lookup <- readr::read_csv(lookup_path, progress = F)
 
   out_file_path <- file.path(my_paths$clean_data_folder, out_file)
 
@@ -119,17 +138,18 @@ find_values_in_column <- function(data, my_paths, column, lookup_file, out_file)
     dplyr::select(-variable)
 
   for(label  in lookup$label){
-    variable_data[label] <- stringr::str_detect(variable_data$value, label)
+    if(lower_case){
+      variable_data$value <- stringr::str_to_lower(variable_data$value)
+    }
+    variable_data[label] <- stringr::str_count(variable_data$value, label)
   }
 
   matches <- variable_data %>%
     dplyr::select(-value) %>%
     tidyr::pivot_longer(cols =  tidyselect::one_of(lookup$label) ,
                         names_to = "label",
-                        values_to = "value") %>%
-    dplyr::filter(value) %>%
-    dplyr::select(-value)
-
+                        values_to = "count") %>%
+    dplyr::filter(count >0)
 
   previous_data <- NULL
   if(file.exists(out_file_path)){
@@ -140,12 +160,3 @@ find_values_in_column <- function(data, my_paths, column, lookup_file, out_file)
   saveRDS(new_data, out_file_path)
 
 }
-
-find_policy_areas <- function(raw_data){
-
-}
-
-file = "2020-04-17_49899_39927_.rds"
-
-data_folder <- my_paths$data_folder
-

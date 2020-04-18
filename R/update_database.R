@@ -1,3 +1,10 @@
+#' @title Update jobs database
+#' @description Performs the Civil Service Jobs scrape - cleans the new data
+#' @param civil_service_user Are yoy a Civil Service User - if you are - you will need your username and password
+#' in the working directory as an R file called user_name_and_password.R with the structure:
+#' username = [CSJ username]
+#' password = [CSJ password]
+#' @export
 
 update_database <- function(civil_service_user = T){
   if(civil_service_user){
@@ -7,10 +14,12 @@ update_database <- function(civil_service_user = T){
   }
   my_paths <- get_paths()
 
+  #Create data folder if it doesn't exist
   if (!file.exists(my_paths$data_folder)){
     dir.create(file.path(my_paths$parent_folder_path, my_paths$data_folder))
   }
 
+  #existing_refs is a list of jobs that have already been scraped
   if(file.exists(my_paths$existing_refs_path)){
     existing_refs <- readRDS(my_paths$existing_refs_path)
   } else {
@@ -25,7 +34,7 @@ update_database <- function(civil_service_user = T){
                                new_data
   )
 
-  cleaned_data <- CivilServiceR::clean_and_combine_raw_data()
+  CivilServiceR::clean_and_combine_raw_data()
 
 }
 
@@ -38,10 +47,10 @@ save_new_data <- function(existing_refs,
     dplyr::select(job_ref) %>%
     unique()
 
+  #min and max don't really matter here -  they are just a way of creating a unique file name
   max_ref <- as.character(max(as.numeric(new_refs$job_ref), na.rm = T))
   min_ref <- as.character(min(as.numeric(new_refs$job_ref), na.rm = T))
 
-  #min and max don't really matter here -  they are just a way of creating a unique file name
   new_file_name <- lubridate::today() %>%
     as.character() %>%
     paste(max_ref, min_ref, ".rds", sep = "_")
@@ -63,6 +72,7 @@ save_new_data <- function(existing_refs,
 
 
 login <- function(username_and_password_file){
+  #Log into Civil Service Jobs
   source(username_and_password_file)
   login_url <- "https://www.civilservicejobs.service.gov.uk/csr/login.cgi"
   session <- rvest::html_session(login_url)
@@ -75,26 +85,38 @@ login <- function(username_and_password_file){
 }
 
 get_new_data <- function(session, existing_refs){
+  #Get any data for job refs that have not yet been scraped
 
+  #Scrape the search results pages for basic data
   basic_data <- CivilServiceR::scrape_adverts(session)
 
+  #filter the basic data to those that have not yet been scraped
   basic_new_data <- basic_data %>%
     dplyr::mutate(job_ref = as.character(stringr::str_replace(refcode,"Reference: ", ""))) %>%
     dplyr::filter(!(job_ref %in% existing_refs$job_ref))
 
+  if(nrow(basic_new_data) == 0){
+    print("No new jobs today :(")
+    return(NULL)
+  }
+
+  #get the links to new jobs
   new_job_urls <- basic_new_data %>%
     dplyr::pull(link)
 
+  #make basic data narrow so it can be combined with the full jobs page data
   narrow_new_data <- basic_new_data %>%
     tidyr::pivot_longer(cols = -tidyr::one_of("job_ref"), names_to = "variable", values_to = "value")
 
   new_advert_count <- length(new_job_urls)
   i <- seq(1,new_advert_count)
 
+  #get the full page jobs data
   full_jobs_data <- new_job_urls %>%
     purrr::map2(i, CivilServiceR::scrape_full_job, session, new_advert_count) %>%
     purrr::reduce(dplyr::bind_rows)
 
+  #combine the basic and full advert data (both are narrow at this point)
   all_jobs_data <- full_jobs_data %>%
     dplyr::bind_rows(narrow_new_data)
 
