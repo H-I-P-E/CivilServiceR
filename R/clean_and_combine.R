@@ -9,10 +9,21 @@ clean_raw_data <- function(save_in_app = T, re_clean_all = F){
     dir.create(my_paths$clean_data)
   }
 
-  cleaned_refs = NULL
+  cleaned_files = NULL
+
+  lookup_file_paths <- list("grades_data.rds",
+                            "roles_data.rds") %>%
+    purrr::map(~file.path(my_paths$clean_data, . ))
+
+  if(re_clean_all){
+    #delete all the lookups
+    purrr::map(lookup_file_paths, file.remove)
+  }
 
   if(!(re_clean_all|!file.exists(my_paths$cleaned_file_names_path))){
-    cleaned_refs <- readRDS(my_paths$cleaned_file_names_path)
+    cleaned_files <- readRDS(my_paths$cleaned_file_names_path)
+  }else{
+
   }
 
   cleaned_paths <- purrr::map(list.files(my_paths$data_folder_path),
@@ -25,9 +36,6 @@ clean_raw_data <- function(save_in_app = T, re_clean_all = F){
     dir.create(file.path("civil_service_jobs_explorer", "data"))
     file_path <- "civil_service_jobs_explorer\\data\\cleaned_data.rds"
     saveRDS(all_cleaned_data, file_path)
-    lookup_file_paths <- list("grades_data.rds",
-                              "roles_data.rds") %>%
-      purrr::map(~file.path(my_paths$clean_data, . ))
     file.copy(lookup_file_paths, "civil_service_jobs_explorer\\data")
   }
 
@@ -99,7 +107,7 @@ clean_data <- function(file, my_paths, cleaned_files = NULL){
 }
 
 
-find_values_in_column <- function(data, my_paths, column, lookup_file, out_file, reclean_all = F){
+find_values_in_column <- function(data, my_paths, column, lookup_file, out_file){
   lookup_path <- file.path(my_paths$meta_data_folder, lookup_file)
   lookup <- readr::read_csv(lookup_path)
 
@@ -125,8 +133,9 @@ find_values_in_column <- function(data, my_paths, column, lookup_file, out_file,
 
   previous_data <- NULL
   if(file.exists(out_file_path)){
-    previous_data <-readRDS(out_file_path)
+    previous_data <- readRDS(out_file_path)
   }
+
   new_data <- dplyr::bind_rows(previous_data, matches)
   saveRDS(new_data, out_file_path)
 
