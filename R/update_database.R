@@ -28,6 +28,7 @@ update_database <- function(civil_service_user = T){
 
   new_data <- CivilServiceR::get_new_data(session, existing_refs)
 
+  if(!is.null(new_data)){
   CivilServiceR::save_new_data(existing_refs,
                                my_paths$existing_refs_path,
                                my_paths$data_folder_path,
@@ -36,6 +37,9 @@ update_database <- function(civil_service_user = T){
 
   CivilServiceR::clean_and_combine_raw_data()
 
+  #Deploy new version of app
+  rsconnect::deployApp("civil_service_jobs_explorer")
+  }
 }
 
 save_new_data <- function(existing_refs,

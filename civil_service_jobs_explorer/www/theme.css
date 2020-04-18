@@ -1,6 +1,14 @@
 body {
   color: #73BFBD;
+  font-family: Helvetica;
 }
+
+
+th {
+  font-weight: bold;
+  font-size: 20px;
+}
+
 
 h2 {
   font-weight: bold;

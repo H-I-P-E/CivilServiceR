@@ -94,23 +94,23 @@ clean_data <- function(file, my_paths, cleaned_files = NULL){
                                        lookup_file = "key_words.csv",
                                        out_file = "key_words.rds")
 
-  my_columns <- c("title", "location", "date_downloaded", "stage", "department", "grade", "Number of posts", "closingdate", "Type of role")
+  my_columns <- c("title", "location", "date_downloaded", "stage", "department", "grade", "Number of posts", "closingdate", "Type of role", "link")
 
 
   cleaned_data <- raw_data %>%
     dplyr::filter(variable %in% my_columns) %>%
     tidyr::pivot_wider(id_cols = job_ref, names_from = "variable", values_from = "value") %>%
     dplyr::mutate(date_downloaded = lubridate::as_date(date_downloaded),
-                  closing_date = lubridate::parse_date_time(closingdate,  orders = "dmy"),
-                  closing_date = ifelse(is.na(closing_date),
-                                        format(
-                                        lubridate::parse_date_time(
-                                          paste(
-                                            purrr::map(
-                                              stringr::str_split(.$closingdate, pattern = "\\s"),tail, 3),colllapse = " "),
-                                          orders = "dmy"),format="%Y-%m-%d"), closing_date),
+                  closing_date = lubridate::parse_date_time(closingdate,  orders = c("ymd","dmy")),
+                  closing_date = dplyr::case_when(
+                    is.na(closing_date) ~ lubridate::parse_date_time(paste(purrr::map(
+                          stringr::str_split(.$closingdate, pattern = "\\s"),tail, 3),
+                          colllapse = " "),orders = "dmy"),
+                    TRUE ~ closing_date),
+                  closing_date = as.Date(as.POSIXct(closing_date, origin="1970-01-01", format =  "%Y-%m-%d")),
                   number_of_posts = as.numeric(`Number of posts`),
-                  approach = paste(purrr::map(stringr::str_split(.$stage, pattern = "\\s"),tail, 1),colllapse = "")) %>%
+                  approach = stringr::str_trim(stringr::str_remove(stage, "Approach : ")),
+                  grade = stringr::str_trim(stringr::str_remove(grade, "Grade : "))) %>%
     dplyr::select(-`Number of posts`, -closingdate, -stage)
 
   saveRDS(cleaned_data, cleaned_path)
@@ -163,3 +163,4 @@ find_values_in_column <- function(data, my_paths, lower_case = F, column, lookup
   saveRDS(new_data, out_file_path)
 
 }
+file <-"2020-04-13_49530_35817_.rds"
