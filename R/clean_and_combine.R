@@ -45,6 +45,9 @@ clean_and_combine_raw_data <- function(save_in_app = T, re_clean_all = F){
     file_path <- "civil_service_jobs_explorer\\data\\cleaned_data.rds"
     saveRDS(all_cleaned_data, file_path)
     file.copy(lookup_file_paths, "civil_service_jobs_explorer\\data", overwrite = T)
+    key_words_context <- file.path(my_paths$meta_data_folder, "key_words.csv") %>%
+      readr::read_csv(progress = F)
+    saveRDS(key_words_context, "civil_service_jobs_explorer\\data\\key_words_context.rds")
   }
 
   return(all_cleaned_data)
@@ -70,26 +73,26 @@ clean_data <- function(file, my_paths, cleaned_files = NULL){
     dplyr::filter(!is.na(value)) %>%
     dplyr::distinct(variable, job_ref, .keep_all = T)
 
-  create_grades <- CivilServiceR::find_values_in_column(raw_data,
-                                                        my_paths = my_paths,
-                                                        lower_case = F,
-                                                        column = "grade",
-                                                        lookup_file = "grade_lookup.csv",
-                                                        out_file = "grades_data.rds")
+  CivilServiceR::find_values_in_column(raw_data,
+                                       my_paths = my_paths,
+                                       lower_case = F,
+                                       column = "grade",
+                                       lookup_file = "grade_lookup.csv",
+                                       out_file = "grades_data.rds")
 
-  create_roles <- CivilServiceR::find_values_in_column(raw_data,
-                                                       my_paths = my_paths,
-                                                       lower_case = F,
-                                                       column = "Type of role",
-                                                       lookup_file = "role_lookup.csv",
-                                                       out_file = "roles_data.rds")
+  CivilServiceR::find_values_in_column(raw_data,
+                                       my_paths = my_paths,
+                                       lower_case = F,
+                                       column = "Type of role",
+                                       lookup_file = "role_lookup.csv",
+                                       out_file = "roles_data.rds")
 
-  create_policy_areas <- CivilServiceR::find_values_in_column(raw_data,
-                                                              my_paths = my_paths,
-                                                              lower_case = T,
-                                                              column = "Job description",
-                                                              lookup_file = "key_words.csv",
-                                                              out_file = "key_words.rds")
+  CivilServiceR::find_values_in_column(raw_data,
+                                       my_paths = my_paths,
+                                       lower_case = T,
+                                       column = "Job description",
+                                       lookup_file = "key_words.csv",
+                                       out_file = "key_words.rds")
 
   my_columns <- c("title", "location", "date_downloaded", "stage", "department", "grade", "Number of posts", "closingdate", "Type of role")
 
