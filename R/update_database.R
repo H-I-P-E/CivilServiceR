@@ -25,10 +25,7 @@ update_database <- function(civil_service_user = T){
                                new_data
   )
 
-  cleaned_data <- CivilServiceR::clean_and_combine_raw_data(save_csv = T)
-
-
-  #Run regular analysis and tagging here or in cleaning function
+  cleaned_data <- CivilServiceR::clean_and_combine_raw_data()
 
 }
 
@@ -111,14 +108,16 @@ get_paths <- function(){
   parent_folder_path <- here::here()
   data_folder_path <- here::here(data_folder)
   existing_refs_path <- file.path(data_folder_path, "existing_refs.rds")
+  cleaned_files_path <- file.path(clean_data, "cleaned_files.rds")
 
   paths <- list(
     data_folder = data_folder,
     parent_folder_path = parent_folder_path,
     data_folder_path = data_folder_path,
     existing_refs_path = existing_refs_path,
-    meta_data = meta_data,
-    clean_data = clean_data
+    meta_data_folder = meta_data,
+    clean_data_folder = clean_data,
+    cleaned_file_names_path = cleaned_files_path
   )
   return(paths)
 }
