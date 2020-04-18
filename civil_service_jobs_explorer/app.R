@@ -64,7 +64,7 @@ ui <- fluidPage(
                     selectize = TRUE, width = NULL, size = NULL),
         selectInput("dept_select", "Department", departments, selected = NULL, multiple = TRUE,
                     selectize = TRUE, width = NULL, size = NULL),
-        radioButtons("select_current", "Show only current jobs", c(""),  selected = character(0)),
+        shiny::checkboxInput("select_current", "Show only current jobs", value = FALSE),
         h3(textOutput("text_description"))
       ),
 
@@ -95,16 +95,20 @@ server <- function(input, output) {
     if(!is.null( input$dept_select)){
       data <-  dplyr::filter(data, department %in% input$dept_select)}
 
-    if(!is.null(input$select_current)){
-      data <-  dplyr::filter(data, closing_date > lubridate::today())}
-
     data <- data %>%
       tidyr::replace_na(list(number_of_posts = 1))
 
   })
 
+  date_filtered <- reactive({
+  if(input$select_current){
+    my_data <- filtered()
+    data <-  dplyr::filter(my_data, closing_date > lubridate::today())}
+    data <- data
+  })
+
    output$mytable <- DT::renderDataTable({
-     my_data <- filtered()
+     my_data <- date_filtered()
      my_data %>%
        dplyr::transmute(
          Title = title,
