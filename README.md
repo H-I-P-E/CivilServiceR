@@ -8,7 +8,7 @@ The app can be accessed [here](https://highimpact.shinyapps.io/civil_service_job
 
 The app was designed by the [HIPE](https://hipe.org.uk/) team to help civil servants and future civil servants plan an impactful career.
 
-For more information, feedback or ideas about improvements, please contact [Toby](https://mailto:tobiasjolly@gmail.com?subject=HIPE jobs app)
+For more information, feedback or ideas about improvements, please contact [Toby](https://mailto:tobiasjolly@gmail.com)
 
 ### Technical stuff 
 
