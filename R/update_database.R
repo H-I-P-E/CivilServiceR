@@ -153,14 +153,14 @@ get_paths <- function(){
 
 
 perform_search <- function(session){
-  #Perform search for all jobs
+  #Perform search for all jobs (with 600 miles of Birmingham or overseas)
   search_url <- "https://www.civilservicejobs.service.gov.uk/csr/index.cgi"
   session <- rvest::jump_to(session, search_url)
   form <- rvest::html_form(xml2::read_html(search_url))[[1]]
   filled_form <- rvest::set_values(form,
                                    postcodedistance = "600",
-                                   postcode = "Birmingham")
-
+                                   postcode = "Birmingham",
+                                   postcodeinclusive = "1")
   session <- rvest::submit_form(session, filled_form)
   return(session$url)
 }
