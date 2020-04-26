@@ -9,15 +9,22 @@ approachs <- c("External")
 min_area_sum = 9
 HIPE_colour = "#73BFBD"
 app_title = "HIPE job search"
+external_only = F
 
 ####Data####
 
-data <- readRDS(".//data//cleaned_data.rds") %>%
-  dplyr::filter(approach %in% approachs)
+data <- readRDS(".//data//cleaned_data.rds")
+
+if(external_only){
+  data <- data %>%
+    dplyr::filter(approach %in% approachs)
+}
 
 refs <- data$job_ref
 
 departments <- unique(data$department) %>% sort()
+
+acronyms <- readr::read_csv(".//www//dept_acronyms.csv")
 
 grades_data <-  readRDS(".//data//grades_data.rds")%>%
   dplyr::filter(job_ref %in% refs)
@@ -69,6 +76,9 @@ ui <- fluidPage(
         plotlyOutput("dept_plot")
       ),
       mainPanel(
+        if(!external_only){
+          shiny::checkboxInput("include_internal", "Show internal jobs", value = FALSE)
+        },
         shiny::checkboxInput("select_current", "Show only current jobs", value = FALSE),
         DT::dataTableOutput("mytable")
       )
@@ -87,6 +97,20 @@ server <- function(input, output) {
   }, deleteFile = FALSE)
 
   filtered <- reactive({
+
+    if(input$select_current){
+      data <- data %>%
+        dplyr::filter(closing_date > lubridate::today() & input$select_current)
+    }
+    if(!external_only){
+      if(!input$include_internal){
+        data <- data %>%
+          dplyr::filter(approach %in% approachs)
+      }
+    }else{
+      data <- data %>%
+        dplyr::filter(approach %in% approachs)
+    }
 
     if(!is.null(input$cause_area)){
       refs <- dplyr::filter(key_words_data, `Cause area` %in% input$cause_area) %>% dplyr::pull(job_ref)
@@ -119,16 +143,15 @@ server <- function(input, output) {
     DT::datatable({
     my_data <- filtered()
 
-    if(input$select_current){
-      my_data <- my_data %>%
-        dplyr::filter(closing_date > lubridate::today() & input$select_current)
-    }
+
+
     my_data %>%
       dplyr::mutate(Title = paste0("<a href='", link,"' target='_blank'>", title ,"</a>")) %>%
       dplyr::transmute(
         Title = Title,
         Department = department,
         Grade = grade,
+        Location = location,
         `Closing date` = closing_date
       )
   },options = list(pageLength = 20, autoWidth = TRUE),
@@ -136,6 +159,7 @@ server <- function(input, output) {
   escape = FALSE))
 
   output$text_description <- renderText ({
+
 
     jobs <- sum(filtered()$number_of_posts, na.rm= T)
     rate <- as.integer(jobs/months_in_data)
@@ -147,14 +171,15 @@ server <- function(input, output) {
   output$dept_plot <- renderPlotly({
     my_data <- filtered()
     grouped_data <- my_data %>%
-      dplyr::group_by(department) %<>%
+      dplyr::group_by(department) %>%
       dplyr::summarise(number_of_posts = sum(number_of_posts, na.rm = T)) %>%
       dplyr::arrange(desc(number_of_posts)) %>%
       ungroup() %>%
-      dplyr::mutate(acronym = abbreviate(department, minlength = 2)) %>%
+      dplyr::left_join(acronyms, c("department" = "department")) %>%
+      dplyr::mutate(acronym = ifelse(is.na(acronym), abbreviate(department, minlength = 2), acronym)) %>%
       head(10)
 
-    p <-ggplot2::ggplot(grouped_data,
+    p <- ggplot2::ggplot(grouped_data,
                         aes(x = reorder(acronym, number_of_posts) , y = number_of_posts, tooltip = department)) +
       ggplot2::geom_bar(stat = "identity", fill = HIPE_colour)  +
       coord_flip()+

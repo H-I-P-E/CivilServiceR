@@ -7,9 +7,9 @@
 
 library(magrittr)
 
-scrape_adverts <- function(session){
+scrape_adverts <- function(session,
+                           search_url = "https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=cGFnZWNsYXNzPUpvYnMma2V5PTUwNzAwMDAmcGFnZWFjdGlvbj1zZWFyY2hieWNvbnRleHRpZCZ1c2Vyc2VhcmNoY29udGV4dD05ODE0Nzk3OSZyZXFzaWc9MTU4Nzc0MzA1MC1lYjEzNTQxODUxZWFkODdhYzJiNGYzNmJhNWZmZTRkZjNlNWFmZGRm"){
 
-  search_url = "https://www.civilservicejobs.service.gov.uk/csr/index.cgi?SID=YWdlbnRfY29kZT0xNjU5NTc5JmNzb3VyY2U9Y3NhbGVydHNlYXJjaCZ1c2Vyc2VhcmNoY29udGV4dD0mb3duZXJ0eXBlPWZhaXImc3RvcmVzZWFyY2hjb250ZXh0PTEmcGFnZWFjdGlvbj1zZWFyY2hieWFnZW50Y29kZSZwYWdlY2xhc3M9Sm9icyZvd25lcj01MDcwMDAwJnJlcXNpZz0xNTgzMzE3ODg3LTZlOTlmNzg1MGIyZmZmNWQ5NmRjMGMzYmU1MGY2NTY3MWIxZTE4MzQ="
   search_pages <- CivilServiceR::get_all_search_pages(session, search_url)
 
   results <- NULL

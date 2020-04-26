@@ -7,12 +7,15 @@
 #' @export
 
 update_database <- function(civil_service_user = T){
+
   if(civil_service_user){
     session = CivilServiceR::login('user_name_and_password.R')
   } else {
     session = NULL
   }
   my_paths <- get_paths()
+
+  search_url = CivilServiceR::perform_search(session)
 
   #Create data folder if it doesn't exist
   if (!file.exists(my_paths$data_folder)){
@@ -26,7 +29,7 @@ update_database <- function(civil_service_user = T){
     existing_refs <- NULL
   }
 
-  new_data <- CivilServiceR::get_new_data(session, existing_refs)
+  new_data <- CivilServiceR::get_new_data(session, existing_refs, search_url)
 
   if(!is.null(new_data)){
   CivilServiceR::save_new_data(existing_refs,
@@ -88,11 +91,11 @@ login <- function(username_and_password_file){
   return(session)
 }
 
-get_new_data <- function(session, existing_refs){
+get_new_data <- function(session, existing_refs, search_url){
   #Get any data for job refs that have not yet been scraped
 
   #Scrape the search results pages for basic data
-  basic_data <- CivilServiceR::scrape_adverts(session)
+  basic_data <- CivilServiceR::scrape_adverts(session, search_url)
 
   #filter the basic data to those that have not yet been scraped
   basic_new_data <- basic_data %>%
@@ -147,3 +150,18 @@ get_paths <- function(){
   )
   return(paths)
 }
+
+
+perform_search <- function(session){
+  #Perform search for all jobs
+  search_url <- "https://www.civilservicejobs.service.gov.uk/csr/index.cgi"
+  session <- rvest::jump_to(session, search_url)
+  form <- rvest::html_form(xml2::read_html(search_url))[[1]]
+  filled_form <- rvest::set_values(form,
+                                   postcodedistance = "600",
+                                   postcode = "Birmingham")
+
+  session <- rvest::submit_form(session, filled_form)
+  return(session$url)
+}
+
