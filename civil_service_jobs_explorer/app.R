@@ -53,8 +53,10 @@ months_in_data <- as.integer((max(data$date_downloaded, na.rm = T) -
 
 ui <- fluidPage(
   theme = "theme.css",
-  titlePanel(title=div(img(src="hipe_logo.png",
-                           style="width: 100px; float:right")
+  titlePanel(title=div(a(href="https://hipe.org.uk/",
+                         img(src="hipe_logo.png",
+                           style="width: 100px; float:right",
+                           ))
                        ,app_title),
              windowTitle = app_title),
   h3("Search for impactful jobs in the Civil Service", align = "left"),
@@ -82,7 +84,10 @@ ui <- fluidPage(
         shiny::checkboxInput("select_current", "Show only current jobs", value = FALSE),
         DT::dataTableOutput("mytable")
       )
-    )
+      ),
+    HTML("<p style=\"text-align:center;font-size:20px\"><br>This app is designed by the HIPE team to help civil servants and future civil servants plan an impactful career.
+    <br>For more information about HIPE go <a href=\"https://hipe.org.uk\">here</a>.
+    <br>For more information about this app go <a href=\"https://github.com/TWJolly/CivilServiceR/blob/master/README.md\">here </a></p>")
   )
 )
 
