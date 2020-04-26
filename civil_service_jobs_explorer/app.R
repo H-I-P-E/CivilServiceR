@@ -81,7 +81,7 @@ ui <- fluidPage(
         if(!external_only){
           shiny::checkboxInput("include_internal", "Show internal jobs", value = FALSE)
         },
-        shiny::checkboxInput("select_current", "Show only current jobs", value = FALSE),
+        shiny::checkboxInput("select_current", "Show only current jobs", value = TRUE),
         DT::dataTableOutput("mytable")
       )
       ),
