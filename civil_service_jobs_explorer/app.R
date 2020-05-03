@@ -26,10 +26,19 @@ departments <- unique(data$department) %>% sort()
 
 acronyms <- readr::read_csv(".//www//dept_acronyms.csv")
 
-grades_data <-  readRDS(".//data//grades_data.rds")%>%
-  dplyr::filter(job_ref %in% refs)
+grade_lookup <- readr::read_csv(".//www//grade_lookup.csv") %>%
+  dplyr::select(label, order, name)
 
-grades <- unique(grades_data$label) %>% sort()
+grades_data <-  readRDS(".//data//grades_data.rds")%>%
+  dplyr::filter(job_ref %in% refs) %>%
+  dplyr::left_join(grade_lookup) %>%
+  dplyr::mutate(label = name) %>%
+  dplyr::select(-name, -order)
+
+factor(grades_data$label, levels = grades_data$order)
+
+grades <- unique(grade_lookup) %>% dplyr::arrange(desc(order)) %>%
+  dplyr::pull(name)
 
 roles_data <-  readRDS(".//data//roles_data.rds")%>%
   dplyr::filter(job_ref %in% refs)
@@ -55,11 +64,11 @@ ui <- fluidPage(
   theme = "theme.css",
   titlePanel(title=div(a(href="https://hipe.org.uk/",
                          img(src="hipe_logo.png",
-                           style="width: 100px; float:right",
+                           style="width: 100px; float:right"
                            ))
                        ,app_title),
              windowTitle = app_title),
-  h3("Search for impactful jobs in the Civil Service", align = "left"),
+  h3("Search Civil Service jobs by the type of social impact you could have", align = "left"),
 
   fluidRow(
     # Sidebar with a slider input for number of bins
@@ -85,9 +94,10 @@ ui <- fluidPage(
         DT::dataTableOutput("mytable")
       )
       ),
-    HTML("<p style=\"text-align:center;font-size:20px\"><br>This app is designed by the HIPE team to help civil servants and future civil servants plan an impactful career.
+    HTML(paste0("<p style=\"text-align:center;font-size:20px\"><br>This app is designed by the HIPE team to help civil servants and future civil servants plan an impactful career.
     <br>For more information about HIPE go <a href=\"https://hipe.org.uk\">here</a>.
-    <br>For more information about this app go <a href=\"https://github.com/TWJolly/CivilServiceR/blob/master/README.md\">here </a></p>")
+    <br>For more information about this app go <a href=\"https://github.com/TWJolly/CivilServiceR/blob/master/README.md\">here </a>
+    <br><br>Last updated: ", max(data$date_downloaded, na.rm = T) ,"</p>"))
   )
 )
 
@@ -151,9 +161,9 @@ server <- function(input, output) {
 
 
     my_data %>%
-      dplyr::mutate(Title = paste0("<a href='", link,"' target='_blank'>", title ,"</a>")) %>%
+      dplyr::mutate(link_title = paste0("<a href='", link,"' target='_blank'>", title ,"</a>")) %>%
       dplyr::transmute(
-        Title = Title,
+        Title = ifelse(closing_date < lubridate::today(), title, link_title),
         Department = department,
         Grade = grade,
         Location = location,
