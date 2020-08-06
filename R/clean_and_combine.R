@@ -73,6 +73,8 @@ clean_data <- function(file, my_paths, cleaned_files = NULL){
     dplyr::filter(!is.na(value)) %>%
     dplyr::distinct(variable, job_ref, .keep_all = T)
 
+
+
   CivilServiceR::find_values_in_column(raw_data,
                                        my_paths = my_paths,
                                        lower_case = F,
