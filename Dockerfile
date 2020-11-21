@@ -20,17 +20,14 @@ RUN Rscript -e "install.packages(\
         'rvest',\
         'devtools',\
         'magrittr',\
-        'here'\
+        'here',\
+        'lubridate'\
     ),\
     repos = c(CRAN = 'http://cran.rstudio.com')\
     )"
 
 RUN rm -r /srv/shiny-server/*
 COPY ./civil_service_jobs_explorer/ /srv/shiny-server/
-
-# COPY ./CivilServiceR/ /srv/shiny-server/CivilServiceR/
-# RUN Rscript -e "devtools::install_local('/srv/shiny-server/CivilServiceR/')"
-# CMD ["R"]
 
 RUN echo "preserve_logs true;" >> /etc/shiny-server/shiny-server.conf
 
