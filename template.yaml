@@ -1,0 +1,108 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  AccountId:
+    Type: AWS::SSM::Parameter::Value<String>
+  SSHKey:
+    Type: AWS::SSM::Parameter::Value<String>
+  DockerImage: 
+    Type: String
+  DashboardName:
+    Type: String
+    Default: CivilServiceJobsExplorer
+  BucketName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: civil-service-jobs
+  AmiId:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: ubuntuAMI
+  InstanceType:
+    Type: String
+    Default: t3.small
+
+Resources:
+
+  DashboardRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: 
+            Service: ec2.amazonaws.com
+          Action: sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: DashboardPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource:
+            - !Sub arn:aws:ssm:${AWS::Region}:${AccountId}:parameter/${DashboardName}/*
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - logs:DescribeLogStreams
+            Resource: *
+          - Effect: Allow
+            Action: ecr:*
+            Resource: *
+          - Effect: Allow
+            Action: s3:*
+            Resource: 
+            - !Sub arn:aws:s3:::${BucketName}*
+  
+  DashboardInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles: DashboardRole
+      
+      
+  DashboardAutoScalingLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: true
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref SSHKey
+      IamInstanceProfile: !Ref DashboardInstanceProfile
+      SecurityGroups: !Ref DashboardSecurityGroup TODO
+      UserData:
+        Fn::Base64:
+          !Sub
+          - |
+          #!/bin/bash
+          aws ecr get-login --region ${AWS::Region} --no-include-email
+          docker run -p 80:3838 ${AWS::AccountId}.dkr.ecr.eu-west-2.amazonaws.com/${docker_image}:latest
+
+  DashboardAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Sub Dashboards-${DashboardName}
+      Cooldown: 10
+      MinSize: 0
+      DesiredCapacity: 1
+      MaxSize: 3
+      HealthCheckGracePeriod: 300
+      HealthCheckType: ELB
+      LaunchConfigurationName: !Ref DashboardAutoScalingLaunchConfig
+      TargetGroupARNs:
+        - !Ref TargetGroup TODO
+      TerminationPolicies: Default
+      
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+    
+    
+  ListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref LoadBalancer
