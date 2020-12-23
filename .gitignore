@@ -4,3 +4,10 @@ data
 archive
 test_bi.pbix
 clean_data
+.env
+.venv
+R/classify_jobs.R
+meta_data/key_words.csv
+existing_refs.csv
+existing_refs.csv
+R/rds_to_csv.R
