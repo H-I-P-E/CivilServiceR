@@ -11,3 +11,4 @@ meta_data/key_words.csv
 existing_refs.csv
 existing_refs.csv
 R/rds_to_csv.R
+cleaned_files.csv

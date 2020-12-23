@@ -1,8 +1,6 @@
 import boto3 as bt
 import pandas as pd
-import paramiko
 import os
-import pyreadr
 import requests
 from io import StringIO 
 from io import BytesIO  
@@ -22,7 +20,6 @@ ssm_client = bt.client('ssm',
     aws_secret_access_key=SECRET_KEY
     )
 
-
 previous_ids = client.get_object(Bucket="civil-service-jobs", Key="existing_refs.csv")
 body = previous_ids['Body']
 csv_string = body.read().decode('utf-8')
@@ -35,19 +32,16 @@ login_url = "https://www.civilservicejobs.service.gov.uk/csr/login.cgi"
 values = {'username': csj_username,
           'password_login_window': csj_password}
 
-session_requests = requests.session()
+session = requests.post(login_url, data=values) 
 
 #result = session_requests.get(login_url)
-
-session = session_requests.post(login_url, data=values) 
+#FIX this log in and search
 
 
 search_url = "https://www.civilservicejobs.service.gov.uk/csr/index.cgi"
+search_values = {"postcodedistance":"600", "postcode":"Birmingham",
+                "postcodeinclusive":"1"}
 
-session = rvest::jump_to(session, search_url)
-  form = rvest::html_form(xml2::read_html(search_url))[[1]]
-  filled_form = rvest::set_values(form,
-                                   postcodedistance = "600",
-                                   postcode = "Birmingham",
-                                   postcodeinclusive = "1")
-  session = rvest::submit_form(session, filled_form)
+response = requests.post(search_url, data=search_values) 
+
+soup = BeautifulSoup(response.content)
