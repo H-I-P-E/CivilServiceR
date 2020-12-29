@@ -5,14 +5,17 @@ import requests
 from io import StringIO 
 from io import BytesIO  
 import urllib.request as urllib2
+from urllib import request, parse
 from bs4 import BeautifulSoup
+import re
+import mechanize
+from lxml import etree
 
 client = bt.client(
     's3',
     aws_access_key_id=ACCESS_KEY,
     aws_secret_access_key=SECRET_KEY
     )
-
 
 ssm_client = bt.client('ssm',
     region_name="eu-west-2",
@@ -28,20 +31,42 @@ df = pd.read_csv(StringIO(csv_string))
 csj_username = ssm_client.get_parameter(Name='/CivilServiceJobsExplorer/Toby/csjemail', WithDecryption=True)
 csj_password = ssm_client.get_parameter(Name='/CivilServiceJobsExplorer/Toby/csjpassword', WithDecryption=True)
 
-login_url = "https://www.civilservicejobs.service.gov.uk/csr/login.cgi"
-values = {'username': csj_username,
-          'password_login_window': csj_password}
+br = mechanize.Browser()
+br.open("https://www.civilservicejobs.service.gov.uk/csr/login.cgi")
+br.select_form(nr=0)
 
-session = requests.post(login_url, data=values) 
 
-#result = session_requests.get(login_url)
-#FIX this log in and search
+br.form['username'] = csj_username['Parameter']['Value']
+br.form['password_login_window'] = csj_password['Parameter']['Value']
 
+req = br.submit()
+req.read()
 
 search_url = "https://www.civilservicejobs.service.gov.uk/csr/index.cgi"
-search_values = {"postcodedistance":"600", "postcode":"Birmingham",
-                "postcodeinclusive":"1"}
 
-response = requests.post(search_url, data=search_values) 
 
-soup = BeautifulSoup(response.content)
+br.open("https://www.civilservicejobs.service.gov.uk/csr/index.cgi")
+br.select_form(nr=0)
+
+
+br.form['postcode'] = "Birmingham"
+br.form['postcodedistance'] = ["600"]
+br.form['postcodeinclusive'] = ["1"]
+
+req = br.submit()
+html =req.read()
+
+
+xpath = "//div//div//div//a/@href"
+
+tree = etree.HTML(html)
+
+#A list of all the search pages
+search_pages = tree.xpath(xpath)
+
+#get the correct search pages (this is not selective enough)
+search_pages = [page for page in search_pages if page.find(search_url) != -1]
+
+
+
+
