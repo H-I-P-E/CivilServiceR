@@ -1,16 +1,11 @@
 import boto3 as bt
 import pandas as pd
-import os
-import requests
 from io import StringIO 
-from io import BytesIO  
-import urllib.request as urllib2
-from urllib import request, parse
-from bs4 import BeautifulSoup
-import re
 import mechanize
 from lxml import etree
 import numpy as np
+from datetime import date
+
 
 client = bt.client(
     's3',
@@ -27,7 +22,7 @@ ssm_client = bt.client('ssm',
 previous_ids = client.get_object(Bucket="civil-service-jobs", Key="existing_refs.csv")
 body = previous_ids['Body']
 csv_string = body.read().decode('utf-8')
-df = pd.read_csv(StringIO(csv_string))
+previous_ids_df = pd.read_csv(StringIO(csv_string))
 
 csj_username = ssm_client.get_parameter(
         Name='/CivilServiceJobsExplorer/Toby/csjemail', WithDecryption=True)
@@ -47,11 +42,9 @@ req.read()
 
 search_url = "https://www.civilservicejobs.service.gov.uk/csr/index.cgi"
 
-
-br.open("https://www.civilservicejobs.service.gov.uk/csr/index.cgi")
+#Preform a search of jobs that covers all of the UK and overseas
+br.open(search_url)
 br.select_form(nr=0)
-
-
 br.form['postcode'] = "Birmingham"
 br.form['postcodedistance'] = ["600"]
 br.form['postcodeinclusive'] = ["1"]
@@ -59,13 +52,10 @@ br.form['postcodeinclusive'] = ["1"]
 req = br.submit()
 html = req.read()
 
-
-xpath = "//div//div//div//a"
-
 tree = etree.HTML(html)
 
-#A list of all the search pages
-link_elements = tree.xpath(xpath)
+#Gets a list of all the search pages
+link_elements = tree.xpath(//div//div//div//a")
 
 link_urls = [link.get('href') for link in link_elements]
 link_titles = [link.get('title') for link in link_elements]
@@ -77,16 +67,15 @@ search_links = list(dict.fromkeys([page[0] for page in links if
 
 search_links = search_links[0:2] # for testing
 
-results = []
+basic_advert_results = []
 
-for (i, page) in zip([1,len(search_links)], search_links):
+for (i, page) in zip(range(1,len(search_links)), search_links):
     #This loop goes to each page in the search links and converts 
     #the data there into a narrow dataframe of ref, variable,value
     
     print("Searching page " + str(i) + " of " + str(len(search_links)))
     
     open_page = br.open(page)
-    
     html = open_page.read()
     tree = etree.HTML(html)
     xpath = "//ul//li//div | //ul//li//div//a"
@@ -107,7 +96,8 @@ for (i, page) in zip([1,len(search_links)], search_links):
     links = df[~df['link'].isnull()]
     links =  links[links['link'].str.contains("https://www.civilservicejobs.service.gov.uk/csr/index.cgi")]  
     links['variable'] = "link"
-    links = links[["job_ref","variable","value"]]
+    links = links[["job_ref","variable","link"]]
+    links = links.rename(columns = {"link":"value"})
 
     
     df['link'].fillna("", inplace = True) 
@@ -119,11 +109,73 @@ for (i, page) in zip([1,len(search_links)], search_links):
 
     df = df[["job_ref","variable","value"]]
     
-    page_data = df.append(links)
-    results.append(page_data)
+    page_data = df.append(links, sort=False)
+    basic_advert_results.append(page_data)
     
-    
+basic_data = pd.concat(basic_advert_results, sort=False) 
+
+
 #filter jobs to new jobs
+basic_new_data = basic_data[~basic_data["job_ref"].isin(previous_ids_df['job_ref'])]
+
+full_advert_results = []
+
+new_links = basic_new_data[basic_new_data['variable'] == "link"]
+for (i, page, job_ref) in zip(range(1,len(new_links)+1), new_links['value'], new_links['job_ref'] ):
+    #itterate over new links and  get full jobs
+    print("Scraping page " + str(i) + " of " + str(len(new_links)))
     
-#itterate over new links and  get full jobs
+    open_page = br.open(page)
+    html = open_page.read()
+    tree = etree.HTML(html)
+    elements = tree.cssselect('.vac_display_field_value , h3')
+    node_tag = [e.tag for e in elements]
+    node_text = [etree.tostring(e, encoding='unicode', method = "text") for e in elements]
+    
+    df = pd.DataFrame(list(zip(node_tag, node_text)), 
+               columns =['tag', 'text']) 
+    #H£ elements are assumed to be teh variable headings and other elements (divs) and taken as the values
+    df['variable'] = np.where(df['tag'] == "h3", df['text'], None)
+    df['variable'] =  df['variable'].ffill()
+    df['text'] =  df['text'].str.strip().replace(r'\\n',' ')
+    df['variable'] =  df['variable'].str.strip()
+    df = df[df['tag'] != "h3"]
+    df['value'] = df.groupby(['variable'])['text'].transform(lambda x : "!!!".join(x)) 
+    df = df[["variable","value"]]
+    df = df.drop_duplicates()   
+    df['job_ref'] = job_ref 
+    
+    df = df.append(
+            {"variable": "date_downloaded", "value": str(date.today()) , "job_ref": job_ref},
+            ignore_index=True )
+    
+    #need to check the time in here and if there is not enought time to save - is shoudl quite the looos
+    #And then filter the basic data to the full data that it has managed to donwload before the concat
+    
+    full_advert_results.append(df)
+    
+#Join allnew full advert dataframes together
+full_advert_data = pd.concat(full_advert_results, sort=False) 
+
+full_and_basic_data =  pd.concat([full_advert_data, basic_data], sort=False)
+
+#carriage returns might not be working properly - will need to test in clean_data script
+
+#New Ids are extracted and added to previous ones
+new_ids = full_advert_data[["job_ref"]].drop_duplicates() 
+updated_ids = previous_ids_df.append(new_ids)
+
+
+#New data file name is the current data and the min and max job ref
+min_ref = str(min(new_ids["job_ref"].astype(int)))
+max_ref = str(max(new_ids["job_ref"].astype(int)))
+new_file_name = "_".join([str(date.today()), max_ref, min_ref, ".csv"])
+
+#Add the new data and updated list of IDs to S3 as csvs
+#Data
+full_data_as_csv = full_and_basic_data.to_csv(index = False, encoding='unicode')
+client.put_object(Body=full_data_as_csv, Bucket="civil-service-jobs", Key="raw_data/" + new_file_name)
+#IDs (this just overwrites the old version)
+updated_ids_as_csv = updated_ids.to_csv(index = False, encoding='unicode')
+client.put_object(Body=updated_ids_as_csv, Bucket="civil-service-jobs", Key="existing_refs.csv")
 
