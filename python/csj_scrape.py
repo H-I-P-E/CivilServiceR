@@ -5,7 +5,10 @@ import mechanize
 from lxml import etree
 import numpy as np
 from datetime import date
+import re
 
+
+#Need to get secret key somewhere else (currently just paste into the console - where?)
 
 client = bt.client(
     's3',
@@ -19,16 +22,20 @@ ssm_client = bt.client('ssm',
     aws_secret_access_key=SECRET_KEY
     )
 
+#Get a table of the IDs of previously downloaded jobs (these are not downloaded again - and this 
+#file is updated at the end of this code)
 previous_ids = client.get_object(Bucket="civil-service-jobs", Key="existing_refs.csv")
 body = previous_ids['Body']
 csv_string = body.read().decode('utf-8')
 previous_ids_df = pd.read_csv(StringIO(csv_string))
 
+#User name and password is stored in parameter store and is used to log into Civil Service jobs
 csj_username = ssm_client.get_parameter(
         Name='/CivilServiceJobsExplorer/Toby/csjemail', WithDecryption=True)
 csj_password = ssm_client.get_parameter(
         Name='/CivilServiceJobsExplorer/Toby/csjpassword', WithDecryption=True)
 
+#Log in at the log in page
 br = mechanize.Browser()
 br.open("https://www.civilservicejobs.service.gov.uk/csr/login.cgi")
 br.select_form(nr=0)
@@ -49,14 +56,13 @@ br.form['postcode'] = "Birmingham"
 br.form['postcodedistance'] = ["600"]
 br.form['postcodeinclusive'] = ["1"]
 
+##Serach and extract html of search results
 req = br.submit()
 html = req.read()
-
 tree = etree.HTML(html)
 
 #Gets a list of all the search pages
-link_elements = tree.xpath(//div//div//div//a")
-
+link_elements = tree.xpath("//div//div//div//a")
 link_urls = [link.get('href') for link in link_elements]
 link_titles = [link.get('title') for link in link_elements]
 links = tuple(zip(link_urls,link_titles))
@@ -65,11 +71,9 @@ links = [page for page in links if page[1] is not None]
 search_links = list(dict.fromkeys([page[0] for page in links if 
                                    page[1].find("Go to search results") != -1])) + [req.geturl()]
 
-search_links = search_links[0:2] # for testing
-
 basic_advert_results = []
 
-for (i, page) in zip(range(1,len(search_links)), search_links):
+for (i, page) in zip(range(1,len(search_links)+1), search_links):
     #This loop goes to each page in the search links and converts 
     #the data there into a narrow dataframe of ref, variable,value
     
@@ -89,7 +93,7 @@ for (i, page) in zip(range(1,len(search_links)), search_links):
                            columns = ["link", "variable", "value"])
     
     df['job_ref'] = np.where(df['variable'] == "search-results-job-box-refcode", df['value'], None)
-    df['job_ref'] =  df['job_ref'].bfill()
+    df['job_ref'] =  df['job_ref'].bfill() #upfill references
     df['job_ref'] =  df['job_ref'].str.replace('Reference: ' ,'')
 
     #links are treated seperately as they are part of the href under the job title element
@@ -118,9 +122,14 @@ basic_data = pd.concat(basic_advert_results, sort=False)
 #filter jobs to new jobs
 basic_new_data = basic_data[~basic_data["job_ref"].isin(previous_ids_df['job_ref'])]
 
+#92177
+
 full_advert_results = []
 
 new_links = basic_new_data[basic_new_data['variable'] == "link"]
+
+
+
 for (i, page, job_ref) in zip(range(1,len(new_links)+1), new_links['value'], new_links['job_ref'] ):
     #itterate over new links and  get full jobs
     print("Scraping page " + str(i) + " of " + str(len(new_links)))
@@ -130,14 +139,19 @@ for (i, page, job_ref) in zip(range(1,len(new_links)+1), new_links['value'], new
     tree = etree.HTML(html)
     elements = tree.cssselect('.vac_display_field_value , h3')
     node_tag = [e.tag for e in elements]
-    node_text = [etree.tostring(e, encoding='unicode', method = "text") for e in elements]
+    node_text = [etree.tostring(e, encoding='unicode', method='html') for e in elements]
     
     df = pd.DataFrame(list(zip(node_tag, node_text)), 
                columns =['tag', 'text']) 
-    #H£ elements are assumed to be teh variable headings and other elements (divs) and taken as the values
+    #h3 elements are assumed to be teh variable headings and other elements (divs) and taken as the values
+    #the values for a given heading are all the divs (that match the cssselect) below that heading, but 
+    #before another heading
     df['variable'] = np.where(df['tag'] == "h3", df['text'], None)
     df['variable'] =  df['variable'].ffill()
     df['text'] =  df['text'].str.strip().replace(r'\\n',' ')
+    df['text'] =  df['text'].apply(lambda x: re.sub(r'\x95',"",x)) 
+    df['text'] =  df['text'].apply(lambda x: re.sub(r'\t'," ",x)) 
+    df['text'] =  df['text'].apply(lambda x: re.sub(r'\r'," ",x)) 
     df['variable'] =  df['variable'].str.strip()
     df = df[df['tag'] != "h3"]
     df['value'] = df.groupby(['variable'])['text'].transform(lambda x : "!!!".join(x)) 
@@ -157,7 +171,7 @@ for (i, page, job_ref) in zip(range(1,len(new_links)+1), new_links['value'], new
 #Join allnew full advert dataframes together
 full_advert_data = pd.concat(full_advert_results, sort=False) 
 
-full_and_basic_data =  pd.concat([full_advert_data, basic_data], sort=False)
+full_and_basic_data =  pd.concat([full_advert_data, basic_new_data], sort=False)
 
 #carriage returns might not be working properly - will need to test in clean_data script
 
@@ -173,7 +187,7 @@ new_file_name = "_".join([str(date.today()), max_ref, min_ref, ".csv"])
 
 #Add the new data and updated list of IDs to S3 as csvs
 #Data
-full_data_as_csv = full_and_basic_data.to_csv(index = False, encoding='unicode')
+full_data_as_csv = full_and_basic_data.to_csv(index = False, encoding='unicode', sep = ",", line_terminator = "\n")
 client.put_object(Body=full_data_as_csv, Bucket="civil-service-jobs", Key="raw_data/" + new_file_name)
 #IDs (this just overwrites the old version)
 updated_ids_as_csv = updated_ids.to_csv(index = False, encoding='unicode')
