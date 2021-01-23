@@ -1,5 +1,3 @@
-# import csv
-
 from boto3 import client
 from datetime import datetime
 from dotenv import load_dotenv
@@ -8,6 +6,10 @@ from os import getenv
 from pandas import concat, DataFrame, read_csv, set_option
 
 load_dotenv()
+
+# To run this task while working on it, set the below to True, so that there appears to be an uncleaned file to work on,
+# and so that you are pointing the uploads to test_folder rather than overwriting crucial files.
+development = True
 
 def convert_to_datetime(value):
   # format: 'Closes : 05:00 pm on Wednesday 2nd December 2020'
@@ -48,14 +50,13 @@ column_heading = 'csv'
 if column_heading in original_cleaned_data_filenames:
   original_cleaned_data_filenames.remove(column_heading)
 
-# Remove a recent cleaned_data_filename so that there appears to be an uncleaned
-# file for us to work on.
-# We have to iterate with 'while' because it may have been cleaned multiple times.
-old_style_file = '2020-12-22_91257_72083_.csv'
-new_style_file = '2021-01-23_95715_80682_.csv'
-for removed_cleaned_data_filename in [old_style_file, new_style_file]:
-  while removed_cleaned_data_filename in original_cleaned_data_filenames:
-    original_cleaned_data_filenames.remove(removed_cleaned_data_filename)
+if development:
+# We have to iterate with 'while' because it may be listed more than once.
+  old_style_file = '2020-12-22_91257_72083_.csv'
+  new_style_file = '2021-01-23_95715_80682_.csv'
+  for removed_cleaned_data_filename in [old_style_file, new_style_file]:
+    while removed_cleaned_data_filename in original_cleaned_data_filenames:
+      original_cleaned_data_filenames.remove(removed_cleaned_data_filename)
 
 removed_cleaned_data_filename = old_style_file
 while removed_cleaned_data_filename in original_cleaned_data_filenames:
@@ -293,10 +294,17 @@ keywords_dataframe = concat([old_keywords_count_dataframe, DataFrame(new_keyword
 # Cleaned data
 
 for original_filename, dataframe in wide_cleaned_dataframes_dictionary.items():
+  destination = 'cleaned_data/cleaned_' + original_filename
+  if development:
+    destination = 'test_folder/' + destination
+
   dataframe_as_csv = keywords_dataframe.to_csv(index=False, encoding='unicode')
-  s3_client.put_object(Body=dataframe_as_csv, Bucket="civil-service-jobs", Key=f'test_folder/cleaned_data/cleaned_' + original_filename)
+  s3_client.put_object(Body=dataframe_as_csv, Bucket="civil-service-jobs", Key=destination)
 
 # List of cleaned files (cleaned_files.csv)
+destination = 'cleaned_files.csv'
+if development:
+  destination = 'test_folder/' + destination
 
 todays_cleaned_data_filenames = list(wide_cleaned_dataframes_dictionary.keys())
 # Use set to remove duplicates
@@ -304,7 +312,7 @@ cleaned_files = list(set(todays_cleaned_data_filenames + original_cleaned_data_f
 cleaned_files.sort()
 cleaned_files_dataframe = DataFrame(cleaned_files, columns=['csv'])
 dataframe_as_csv = cleaned_files_dataframe.to_csv(index=False, encoding='unicode')
-s3_client.put_object(Body=dataframe_as_csv, Bucket="civil-service-jobs", Key="test_folder/cleaned_files.csv")
+s3_client.put_object(Body=dataframe_as_csv, Bucket="civil-service-jobs", Key=destination)
 
 # Grades, roles, keyword count tables
 
@@ -314,6 +322,9 @@ token_count_tables = {
   'roles_data.csv': roles_dataframe
 }
 for filename, dataframe in token_count_tables.items():
-  dataframe_as_csv = dataframe.to_csv(index=False, encoding='unicode')
-  s3_client.put_object(Body=dataframe_as_csv, Bucket="civil-service-jobs", Key=f'test_folder/token_count_tables/' + filename)
+  destination = 'token_count_tables/' + filename
+  if development:
+    destination = 'test_folder/' + destination
 
+  dataframe_as_csv = dataframe.to_csv(index=False, encoding='unicode')
+  s3_client.put_object(Body=dataframe_as_csv, Bucket="civil-service-jobs", Key=destination)
