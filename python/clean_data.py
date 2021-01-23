@@ -46,7 +46,7 @@ for object in s3_client.list_objects(Bucket="civil-service-jobs", Prefix=raw_dat
 filenames_to_clean = set(cleaned_data_filenames).symmetric_difference(raw_data_filenames)
 
 def convert_to_datetime(value):
-  # 'Closes : 05:00 pm on Wednesday 2nd December 2020'
+  # format: 'Closes : 05:00 pm on Wednesday 2nd December 2020'
   date_elements = value.split()[-3:]
   time_elements = value.split()[-7:-5]
   
@@ -85,7 +85,7 @@ for filename in filenames_to_clean:
   # Filter to required columns
 
   required_columns = {
-    "approach", # formatted as "Approach : [stage]". New name for 'stage' column, not yet present at time of writing.
+    "approach", # formatted as "Approach : [internal/external]".
     "closingdate", # formatted as "Closes : 11:55 pm on Sunday 17th January 2021"
     "date_downloaded",
     "department",
@@ -94,7 +94,6 @@ for filename in filenames_to_clean:
     # We cannot tell if location contains >1 location ("East Midlands, Eastern, London"), or a single location ("Piccadilly, Manchester")
     "location",
     "Number of posts",
-    "stage", # Old name for 'approach' column, renamed by scrape data. Kept for backwards compatibility.
     "title",
     "Type of role"
   }
@@ -103,19 +102,26 @@ for filename in filenames_to_clean:
 
   # Reformat some columns
   for index in dataframe.index:
+    # Rename any columns called 'stage'. We are moving to a consistent schema across
+    # all parts of the HIPE app, such that the column is always called 'approach'. But
+    # old raw data will still have the old column name.
+    if dataframe.loc[index, "variable"] == "stage":
+      dataframe.loc[index, "variable"] = "approach"
+
     variable = dataframe.loc[index, "variable"]
     value = dataframe.loc[index, "value"]
-    # Convert to python datetime object
-    
+
     if variable == "closingdate":
       dataframe.loc[index, "value"] = convert_to_datetime(value)
     elif variable == "grade":
       dataframe.loc[index, "value"] = value.replace("Grade : ", "")
-    elif variable == "stage" or variable == "approach":
+    elif variable == "approach":
       dataframe.loc[index, "value"] = value.replace("Approach : ", "")
+    elif variable == "Type of role":
+      breakpoint()
 
-  # 'Type of role' column comes back concatenated when there are multiple roles. Break these apart.
-  # Regexing for CamelCase does not solve this because CSJ is inconsistent about whether it inserts a space after each role
+      # 'Type of role' column comes back concatenated when there are multiple roles. Break these apart.
+      # Regexing for CamelCase does not solve this in all cases because CSJ is inconsistent about whether it inserts a space after each role.breakpoint
 
   # Convert to wide data structure (i.e. variables as individual columns instead of variable-value pairs)
 
@@ -123,21 +129,12 @@ for filename in filenames_to_clean:
     job_data = dataframe[dataframe.job_ref == job_reference_number]
 
     job_dictionary = { 'job_ref': int(job_reference_number) }
-    description_and_summary_dictionary = { 'job_ref': int(job_reference_number) }
-
     for column in required_columns:
-      # Rename any columns called 'stage'. We are moving to a consistent schema across
-      # all parts of the HIPE app, such that the column is always called 'approach'. But
-      # old data will still have the old column name.
-      if column == 'stage':
-        continue
-      if column == 'approach':
-        row = job_data[job_data.variable == 'stage']
-      else:
-        row = job_data[job_data.variable == column]
+      row = job_data[job_data.variable == column]
       job_dictionary[column] = row.value.to_string(index=False)
     jobs.append(job_dictionary)
 
+    description_and_summary_dictionary = { 'job_ref': int(job_reference_number) }
     for column in description_and_summary_columns:
       row = job_data[job_data.variable == column]
       description_and_summary_dictionary[column] = row.value.to_string(index=False)
