@@ -83,6 +83,7 @@ ui <- fluidPage(
                     selectize = TRUE, width = NULL, size = NULL),
         selectInput("dept_select", "Department:", departments, selected = NULL, multiple = TRUE,
                     selectize = TRUE, width = NULL, size = NULL)),
+        sliderInput("post_select", "Number of posts (within the advert):", 1, 100, value = c(1, 100)),
         h3(textOutput("text_description")),
         plotlyOutput("dept_plot")
       ),
@@ -141,6 +142,10 @@ server <- function(input, output) {
 
     if(!is.null( input$dept_select)){
       data <-  dplyr::filter(data, department %in% input$dept_select)}
+
+
+    data <-  dplyr::filter(data, (number_of_posts >= input$post_select[[1]] & (number_of_posts <= input$post_select[[2]] | input$post_select[[2]]  == 100)) | is.na(number_of_posts))
+
 
     data <- data %>%
       tidyr::replace_na(list(number_of_posts = 1))
