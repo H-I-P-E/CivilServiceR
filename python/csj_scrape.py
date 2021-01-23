@@ -70,7 +70,6 @@ links = [page for page in links if page[1] is not None]
 #This line finds those links that are search pages and removes duplicates
 search_links = list(dict.fromkeys([page[0] for page in links if 
                                    page[1].find("Go to search results") != -1])) + [req.geturl()]
-
 basic_advert_results = []
 
 for (i, page) in zip(range(1,len(search_links)+1), search_links):
@@ -129,20 +128,19 @@ full_advert_results = []
 new_links = basic_new_data[basic_new_data['variable'] == "link"]
 
 
-
 for (i, page, job_ref) in zip(range(1,len(new_links)+1), new_links['value'], new_links['job_ref'] ):
     #itterate over new links and  get full jobs
     print("Scraping page " + str(i) + " of " + str(len(new_links)))
-    
     open_page = br.open(page)
     html = open_page.read()
     tree = etree.HTML(html)
     elements = tree.cssselect('.vac_display_field_value , h3')
     node_tag = [e.tag for e in elements]
-    node_text = [etree.tostring(e, encoding='unicode', method='html') for e in elements]
+    node_text = [etree.tostring(e, encoding='unicode', method='text') for e in elements]
+    node_html = [etree.tostring(e, encoding='unicode', method='html') for e in elements]
     
-    df = pd.DataFrame(list(zip(node_tag, node_text)), 
-               columns =['tag', 'text']) 
+    df = pd.DataFrame(list(zip(node_tag, node_text, node_html)), 
+               columns =['tag', 'text','html']) 
     #h3 elements are assumed to be teh variable headings and other elements (divs) and taken as the values
     #the values for a given heading are all the divs (that match the cssselect) below that heading, but 
     #before another heading
@@ -152,8 +150,16 @@ for (i, page, job_ref) in zip(range(1,len(new_links)+1), new_links['value'], new
     df['text'] =  df['text'].apply(lambda x: re.sub(r'\x95',"",x)) 
     df['text'] =  df['text'].apply(lambda x: re.sub(r'\t'," ",x)) 
     df['text'] =  df['text'].apply(lambda x: re.sub(r'\r'," ",x)) 
-    df['variable'] =  df['variable'].str.strip()
+   
+    #This html stuff is just here to handle roll types
+    df['html'] = df['html'].apply(lambda x: re.sub("<div class=\"vac_display_field_value\">","",x)) 
+    df['html'] = df['html'].apply(lambda x: re.sub("</div>","",x))
+    df['html'] = df['html'].apply(lambda x: re.sub("<br>","!!!",x))
+    df['text'] =  np.where(df['variable'] == "Type of role", df['html'], df['text'])
+    
+    df['variable'] =  df['variable'].str.strip() 
     df = df[df['tag'] != "h3"]
+    
     df['value'] = df.groupby(['variable'])['text'].transform(lambda x : "!!!".join(x)) 
     df = df[["variable","value"]]
     df = df.drop_duplicates()   
