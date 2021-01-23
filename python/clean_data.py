@@ -23,8 +23,10 @@ cleaned_data_filenames = original_cleaned_data_filenames
 
 # Remove a recent cleaned_data_filename so that there appears to be an uncleaned
 # file for us to work on.
-# We have to iterate because it may have been cleaned multiple times.
-removed_cleaned_data_filename = '2020-12-22_91257_72083_.csv'
+# We have to iterate with 'while' because it may have been cleaned multiple times.
+old_style_file = '2020-12-22_91257_72083_.csv'
+new_style_file = '2021-01-23_95715_80682_.csv'
+removed_cleaned_data_filename = old_style_file
 while removed_cleaned_data_filename in cleaned_data_filenames:
   cleaned_data_filenames.remove(removed_cleaned_data_filename)
 
