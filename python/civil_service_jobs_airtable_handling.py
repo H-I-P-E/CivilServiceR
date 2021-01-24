@@ -33,9 +33,19 @@ key_words_list_df = pd.read_csv(StringIO(key_words_list['Body'].read().decode('u
 key_word_scores = pd.merge(key_words_count_df, key_words_list_df, left_on = "label", right_on = "label")
 key_word_scores['total_score'] = key_word_scores["count"] * key_word_scores['Strength of association 1-9 (currently subjective)']
 
-key_word_scores= key_word_scores.groupby(by = ['job_ref', "Cause area"]).sum()
+job_cause_scores = key_word_scores.groupby(by = ['job_ref', "Cause area"], axis=0, as_index = False).sum()
+job_cause_scores = job_cause_scores[['job_ref', "Cause area", "total_score"]]
 #Get this groupby to work
 
+clean_folder= "test_folder/cleaned_data/"
 
-clean_data = client.get_object(Bucket="civil-service-jobs", Key="data/clean_data.csv")
+clean_data_files = client.list_objects_v2(Bucket="civil-service-jobs", Prefix=clean_folder)['Contents']
+#Use dates to optimise this stuff
+clean_data = []
+
+for file in clean_data_files:
+    file_obj = client.get_object(Bucket="civil-service-jobs", Key=  file['Key'])
+    key_words_count_df = pd.read_csv(StringIO(file_obj['Body'].read().decode('utf-8')))
+
+
 clean_dataframe = pd.read_csv(StringIO(clean_data['Body'].read().decode('utf-8'))) 
