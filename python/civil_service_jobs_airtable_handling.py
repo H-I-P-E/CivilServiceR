@@ -7,6 +7,8 @@ Created on Sat Jan 23 13:09:08 2021
 
 import boto3 as bt
 import pandas as pd
+from io import StringIO 
+from airtable import Airtable
 
 #Need to get secret key somewhere else (currently just paste into the console - where?)
 
@@ -45,7 +47,25 @@ clean_data = []
 
 for file in clean_data_files:
     file_obj = client.get_object(Bucket="civil-service-jobs", Key=  file['Key'])
-    key_words_count_df = pd.read_csv(StringIO(file_obj['Body'].read().decode('utf-8')))
+    df = pd.read_csv(StringIO(file_obj['Body'].read().decode('utf-8')))
+    clean_data.append(df)
+
+clean_dataframe = pd.concat(clean_data)
+
+labelled_clean_data = pd.merge(clean_dataframe, job_cause_scores, left_on = "job_ref", right_on = "job_ref")
+labelled_clean_data = labelled_clean_data.rename(columns={"link": "Link", "title": "Job title"})
+data_to_add = labelled_clean_data[["Job title", "Link"]].to_dict('records')
+
+base_key = "appq9JOFCQtPaSxSC"    
+airtable = Airtable(base_key, 'jobs', api_key = airtable_api_key)
 
 
-clean_dataframe = pd.read_csv(StringIO(clean_data['Body'].read().decode('utf-8'))) 
+for job in data_to_add:
+    airtable.insert(job)
+    
+
+#filter values and add the rest of teh field
+
+
+
+
