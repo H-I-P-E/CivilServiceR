@@ -298,7 +298,7 @@ for original_filename, dataframe in wide_cleaned_dataframes_dictionary.items():
   if development:
     destination = 'test_folder/' + destination
 
-  dataframe_as_csv = keywords_dataframe.to_csv(index=False, encoding='unicode')
+  dataframe_as_csv = dataframe.to_csv(index=False, encoding='unicode')
   s3_client.put_object(Body=dataframe_as_csv, Bucket="civil-service-jobs", Key=destination)
 
 # List of cleaned files (cleaned_files.csv)
