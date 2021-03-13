@@ -84,6 +84,8 @@ login <- function(username_and_password_file){
   login_url <- "https://www.civilservicejobs.service.gov.uk/csr/login.cgi"
   session <- rvest::html_session(login_url)
   form <- rvest::html_form(xml2::read_html(login_url))[[1]]
+  session <- rvest::submit_form(session, form)
+  form <- rvest::html_form(xml2::read_html(login_url))[[2]]
   filled_form <- rvest::set_values(form,
                                    username = username,
                                    password_login_window = password)
@@ -157,6 +159,8 @@ perform_search <- function(session){
   search_url <- "https://www.civilservicejobs.service.gov.uk/csr/index.cgi"
   session <- rvest::jump_to(session, search_url)
   form <- rvest::html_form(xml2::read_html(search_url))[[1]]
+  session <- rvest::submit_form(session, form)
+  form <- rvest::html_form(xml2::read_html(session$response))[[2]]
   filled_form <- rvest::set_values(form,
                                    postcodedistance = "600",
                                    postcode = "Birmingham",
