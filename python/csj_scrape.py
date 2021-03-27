@@ -6,20 +6,23 @@ from lxml import etree
 import numpy as np
 from datetime import date
 import re
+import time
+import os
 
+start_time = time.time()
 
 #Need to get secret key somewhere else (currently just paste into the console - where?)
 
 client = bt.client(
     's3',
-    aws_access_key_id=ACCESS_KEY,
-    aws_secret_access_key=SECRET_KEY
+    aws_access_key_id= os.getenv("ACCESS_KEY"),
+    aws_secret_access_key= os.getenv("SECRET_KEY")
     )
 
 ssm_client = bt.client('ssm',
     region_name="eu-west-2",
-    aws_access_key_id=ACCESS_KEY,
-    aws_secret_access_key=SECRET_KEY
+    aws_access_key_id= os.getenv("ACCESS_KEY"),
+    aws_secret_access_key= os.getenv("SECRET_KEY")
     )
 
 #Get a table of the IDs of previously downloaded jobs (these are not downloaded again - and this
@@ -168,13 +171,20 @@ for (i, page, job_ref) in zip(range(1,len(new_links)+1), new_links['value'], new
             {"variable": "date_downloaded", "value": str(date.today()) , "job_ref": job_ref},
             ignore_index=True )
 
+    
     #need to check the time in here and if there is not enought time to save - is shoudl quite the looos
     #And then filter the basic data to the full data that it has managed to donwload before the concat
 
     full_advert_results.append(df)
+    
+    time_running = time.time() - start_time
+    if time_running >= 720:
+        break
 
-#Join allnew full advert dataframes together
+#Join all new full advert dataframes together
 full_advert_data = pd.concat(full_advert_results, sort=False)
+
+basic_new_data = basic_data[~basic_data["job_ref"].isin(full_advert_data['job_ref'])]
 
 full_and_basic_data =  pd.concat([full_advert_data, basic_new_data], sort=False)
 
