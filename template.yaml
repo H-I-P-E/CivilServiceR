@@ -78,9 +78,11 @@ Resources:
         Fn::Base64:
           !Sub
           - |
-          #!/bin/bash
-          aws ecr get-login --region ${AWS::Region} --no-include-email
-          docker run -p 80:3838 ${AWS::AccountId}.dkr.ecr.eu-west-2.amazonaws.com/${docker_image}:latest
+            #!/bin/bash
+            aws ecr get-login --region ${AWS::Region} --no-include-email
+            docker run -p 80:3838 ${AWS::AccountId}.dkr.ecr.eu-west-2.amazonaws.com/${docker_image}:latest
+          - docker_image: !Ref DockerImage
+            
 
   DashboardAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
