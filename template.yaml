@@ -2,8 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
 Parameters:
-  SSHKey:
-    Type: AWS::SSM::Parameter::Value<String>
   DockerImage: 
     Type: String
     Default: civilservicejobsexplorer
@@ -11,11 +9,11 @@ Parameters:
     Type: String
     Default: CivilServiceJobsExplorer
   BucketName:
-    Type: AWS::SSM::Parameter::Value<String>
+    Type: String
     Default: civil-service-jobs
   AmiId:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: ubuntuAMI
+    Type: String
+    Default: ami-0dc2973b0c5a146f8
   InstanceType:
     Type: String
     Default: t3.small
@@ -44,14 +42,14 @@ Resources:
             - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DashboardName}/*
           - Effect: Allow
             Action:
-            - logs:CreateLogGroup
-            - logs:CreateLogStream
-            - logs:PutLogEvents
-            - logs:DescribeLogStreams
-            Resource: *
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogStreams
+            Resource: "*"
           - Effect: Allow
             Action: ecr:*
-            Resource: *
+            Resource: "*"
           - Effect: Allow
             Action: s3:*
             Resource: 
@@ -61,7 +59,8 @@ Resources:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
-      Roles: !Ref DashboardRole
+      Roles:
+        - !Ref DashboardRole
       
       
   DashboardAutoScalingLaunchConfig:
@@ -70,7 +69,6 @@ Resources:
       AssociatePublicIpAddress: true
       ImageId: !Ref AmiId
       InstanceType: !Ref InstanceType
-      KeyName: !Ref SSHKey
       IamInstanceProfile: !Ref DashboardInstanceProfile
 #       SecurityGroups: !Ref DashboardSecurityGroup
       UserData:
@@ -86,7 +84,8 @@ Resources:
   DashboardAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
-      AvailabilityZones: !GetAZs AWS::Region
+      AvailabilityZones:
+        - !Sub "${AWS::Region}a"
       AutoScalingGroupName: !Sub Dashboards-${DashboardName}
       Cooldown: 30
       MinSize: 0
@@ -95,18 +94,20 @@ Resources:
       HealthCheckGracePeriod: 300
       HealthCheckType: ELB
       LaunchConfigurationName: !Ref DashboardAutoScalingLaunchConfig
-      LoadBalancerNames: !Ref DashboardLoadBalancer
+      LoadBalancerNames:
+        - !Ref DashboardLoadBalancer
       
   DashboardLoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
     Properties:
-      Name: PathbasedALB
+      AvailabilityZones:
+        - !Sub "${AWS::Region}a"
       Listeners:
-        InstancePort: 80
- #maybe need to change instanceport to 3838, but hopefully docker run -p 80:3838 takes care of that
-        LoadBalancerPort: 80
-        Protocol: https
+        - InstancePort: 80
+          LoadBalancerPort: 80
+          Protocol: "HTTP"
         #may need to change to http or tcp if it doesn;t work
+ #maybe need to change instanceport to 3838, but hopefully docker run -p 80:3838 takes care of that
      
      
      
