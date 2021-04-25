@@ -10,8 +10,6 @@
 # fi
 aws configure set default.region eu-west-2
 
- #DO NOT DO THIS IN PRODUCTION, SET VIA ROLE ATTACHED TO PROD MACHINE
-
 bucket_name=$(aws ssm get-parameter --name '/CivilServiceJobsExplorer/BucketName' --output text --query Parameter.Value)
 mkdir /srv/shiny-server/data
 echo $bucket_name

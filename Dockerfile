@@ -2,12 +2,13 @@ from rocker/shiny:3.6.1
 
 RUN apt-get update
 
-RUN apt-get install -y libpython3-dev python3-pip
+RUN apt-get install -y libssl-dev libpython3-dev python3-pip
 RUN pip3 install boto3 awscli
 
 RUN Rscript -e "install.packages(\
     c(\
         'shiny', \
+        'httr', \
         'DT', \
         'shinythemes', \
         'plotly', \
@@ -15,11 +16,7 @@ RUN Rscript -e "install.packages(\
         'readr', \
         'tidyr', \
         'ggplot2', \
-        'rmarkdown',\
-        'rvest',\
-        'devtools',\
         'magrittr',\
-        'here',\
         'lubridate'\
     ),\
     repos = c(CRAN = 'http://cran.rstudio.com')\
