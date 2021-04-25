@@ -64,7 +64,7 @@ def lambda_handler(event, context):
         original_cleaned_data_filenames.remove(removed_cleaned_data_filename)
   
   # Don't truncate the precious data
-  set_option('display.max_colwidth', 200)
+  set_option('display.max_colwidth', 100000)
   
   # Get raw data files to work on
   # All files in raw_data/ which end csv and haven't already been cleaned
