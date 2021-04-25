@@ -2,6 +2,7 @@ library(shiny)
 library(DT)
 library(shinythemes)
 library(plotly)
+library(readr)
 
 ####Parameters####
 
@@ -10,17 +11,34 @@ min_area_sum = 9
 HIPE_colour = "#73BFBD"
 app_title = "HIPE job search"
 external_only = F
+csv = F
 
 ####Data####
 
-data <- readRDS(".//data//cleaned_data.rds")
+if(csv){
+  data <- read_csv(".//data//cleaned_data.csv")
+  grades_data <-  read_csv(".//data//grades_data.csv")
+  key_words_data <- read_csv(".//data//key_words_data.csv")
+  key_words_context <- read_csv(".//data//key_words_context.csv")
+  roles_data <- read_csv(".//data//roles_data.csv")
 
+  data <-data %>%
+    dplyr::mutate(number_of_posts =`Number of posts`) %>%
+    dplyr::mutate(closing_date =closingdate)}else{
+  data <- readRDS(".//data//cleaned_data.rds")
+  grades_data <-  readRDS(".//data//grades_data.rds")
+  key_words_data <- readRDS(".//data//key_words.rds")
+  key_words_context <- readRDS(".//data//key_words_context.rds")
+  roles_data <- readRDS(".//data//roles_data.rds")
+}
+#//civil_service_jobs_explorer
 if(external_only){
   data <- data %>%
     dplyr::filter(approach %in% approachs)
 }
 
 refs <- data$job_ref
+
 
 departments <- unique(data$department) %>% sort()
 
@@ -29,7 +47,7 @@ acronyms <- readr::read_csv(".//www//dept_acronyms.csv")
 grade_lookup <- readr::read_csv(".//www//grade_lookup.csv") %>%
   dplyr::select(label, order, name)
 
-grades_data <-  readRDS(".//data//grades_data.rds")%>%
+grades_data <-  grades_data %>%
   dplyr::filter(job_ref %in% refs) %>%
   dplyr::left_join(grade_lookup) %>%
   dplyr::mutate(label = name) %>%
@@ -39,15 +57,13 @@ factor(grades_data$label, levels = grades_data$order)
 
 grades <- unique(grade_lookup) %>% dplyr::arrange(desc(order)) %>%
   dplyr::pull(name)
-
-roles_data <-  readRDS(".//data//roles_data.rds")%>%
+#//civil_service_jobs_explorer
+roles_data <-  roles_data%>%
   dplyr::filter(job_ref %in% refs)
 
 roles <- unique(roles_data$label)
 
-key_words_context <- readRDS(".//data//key_words_context.rds")
-
-key_words_data <- readRDS(".//data//key_words.rds") %>%
+key_words_data <- key_words_data %>%
   dplyr::filter(job_ref %in% refs) %>%
   dplyr::left_join(key_words_context, by = c("label" = "label")) %>%
   dplyr::group_by(job_ref, `Cause area`) %>%
@@ -85,6 +101,7 @@ ui <- fluidPage(
                     selectize = TRUE, width = NULL, size = NULL)),
         sliderInput("post_select", "Number of posts (within the advert):", 1, 100, value = c(1, 100)),
         h3(textOutput("text_description")),
+        HTML("<p style=\"text-align:center;font-size:20px\">Top 10 departments for number of posts matching your selection in the last 12 months:"),
         plotlyOutput("dept_plot")
       ),
       mainPanel(
@@ -152,6 +169,44 @@ server <- function(input, output) {
 
   })
 
+  twelve_months_summary <- reactive({
+    data <- data %>%
+      dplyr::filter(closing_date >= lubridate::today() - lubridate::years(1))
+
+    if(!external_only){
+      if(!input$include_internal){
+        data <- data %>%
+          dplyr::filter(approach %in% approachs)
+      }
+    }else{
+      data <- data %>%
+        dplyr::filter(approach %in% approachs)
+    }
+
+    if(!is.null(input$cause_area)){
+      refs <- dplyr::filter(key_words_data, `Cause area` %in% input$cause_area) %>% dplyr::pull(job_ref)
+      data <-  dplyr::filter(data, job_ref %in% refs)}
+
+    if(!is.null(input$grade_select)){
+      refs <- dplyr::filter(grades_data, label %in% input$grade_select) %>% dplyr::pull(job_ref)
+      data <-  dplyr::filter(data, job_ref %in% refs)}
+
+    if(!is.null(input$role_select)){
+      refs <- dplyr::filter(roles_data, label %in% input$role_select) %>% dplyr::pull(job_ref)
+      data <-  dplyr::filter(data, job_ref %in% refs)}
+
+    if(!is.null( input$dept_select)){
+      data <-  dplyr::filter(data, department %in% input$dept_select)}
+
+
+    data <-  dplyr::filter(data, (number_of_posts >= input$post_select[[1]] & (number_of_posts <= input$post_select[[2]] | input$post_select[[2]]  == 100)) | is.na(number_of_posts))
+
+
+    data <- data %>%
+      tidyr::replace_na(list(number_of_posts = 1))
+
+  })
+
   date_filtered <- reactive({
     if(input$select_current){
       my_data <- filtered()
@@ -180,16 +235,18 @@ server <- function(input, output) {
 
   output$text_description <- renderText ({
 
+    jobs <- sum(twelve_months_summary()$number_of_posts, na.rm= T)
+    adverts <- nrow(twelve_months_summary())
+    rate <- as.integer(jobs/12)
 
-    jobs <- sum(filtered()$number_of_posts, na.rm= T)
-    rate <- as.integer(jobs/months_in_data)
-
-    paste0("In the past ", prettyNum(months_in_data,big.mark=",",scientific=FALSE), " months, there have been ",prettyNum(jobs,big.mark=",",scientific=FALSE), " posts matching your search criteria,
-            this is a rate of ", prettyNum(rate,big.mark=",",scientific=FALSE), " posts per month")
+    paste0("In the past 12 months, there have been ",prettyNum(jobs,big.mark=",",scientific=FALSE),
+           " posts matching your search criteria, (across ",prettyNum(adverts,big.mark=",",scientific=FALSE) ,
+           " adverts), this is a rate of ", prettyNum(rate,big.mark=",",scientific=FALSE),
+           " posts per month")
   })
 
   output$dept_plot <- renderPlotly({
-    my_data <- filtered()
+    my_data <- twelve_months_summary()
     grouped_data <- my_data %>%
       dplyr::group_by(department) %>%
       dplyr::summarise(number_of_posts = sum(number_of_posts, na.rm = T)) %>%
@@ -203,7 +260,6 @@ server <- function(input, output) {
                         aes(x = reorder(acronym, number_of_posts) , y = number_of_posts, tooltip = department)) +
       ggplot2::geom_bar(stat = "identity", fill = HIPE_colour)  +
       coord_flip()+
-      labs(title = "Top 10 departments for number of\nposts matching your selection")+
       theme(text =element_text(family = "Helvetica",
                                colour = HIPE_colour,
                                size = 14),
@@ -214,9 +270,7 @@ server <- function(input, output) {
             panel.background = element_rect(fill = NA),
             axis.line = element_line(colour = "black"),
             axis.text = element_text(colour = HIPE_colour),
-            plot.title = element_text(hjust = 0,
-                                      margin=margin(0,0,30,0)),
-            plot.margin=margin(c(30,0,0,0)))
+            plot.margin=margin(c(0,0,0,0)))
     ggplotly(p, tooltip = c("number_of_posts","tooltip")) %>% config(displayModeBar = F)
   })
 }

@@ -203,13 +203,12 @@ def lambda_handler(event, context):
     #New Ids are extracted and added to previous ones
     new_ids = full_and_basic_data[["job_ref"]].drop_duplicates()
     updated_ids = previous_ids_df.append(new_ids)
-    if(len(df)) < 1:
+    if(len(full_and_basic_data)) < 1:
         return
     
     new_ids.reset_index(inplace=True)
     
     print(new_ids["job_ref"])
-    
     
     #New data file name is the current data and the min and max job ref
     min_ref = str(new_ids["job_ref"][1])

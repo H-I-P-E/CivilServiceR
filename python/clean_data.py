@@ -36,7 +36,7 @@ def convert_to_datetime(value):
 
 
 def lambda_handler(event, context):
-  development = True
+  development = False
     
   s3_client = client(
     's3',
@@ -64,7 +64,7 @@ def lambda_handler(event, context):
         original_cleaned_data_filenames.remove(removed_cleaned_data_filename)
   
   # Don't truncate the precious data
-  set_option('display.max_colwidth', 200)
+  set_option('display.max_colwidth', 100000)
   
   # Get raw data files to work on
   # All files in raw_data/ which end csv and haven't already been cleaned
@@ -150,6 +150,8 @@ def lambda_handler(event, context):
   
       wide_cleaned_dataframes_dictionary[filename] = DataFrame(jobs)
   
+  if(len(wide_cleaned_dataframes_dictionary) <1):
+      return
   all_cleaned_data_dataframe = concat(wide_cleaned_dataframes_dictionary.values()).drop_duplicates().reset_index(drop=True)
   
   descriptions_and_summaries_dataframe = DataFrame(descriptions_and_summaries)
@@ -161,7 +163,7 @@ def lambda_handler(event, context):
   
   grades_lookup = s3_client.get_object(Bucket="civil-service-jobs", Key="grade_lookup.csv")
   grades_lookup_dataframe = read_csv(StringIO(grades_lookup['Body'].read().decode('windows-1252')))
-  old_grades_count_data = s3_client.get_object(Bucket="civil-service-jobs", Key="token_count_tables/grades_data.csv")
+  old_grades_count_data = s3_client.get_object(Bucket="civil-service-jobs", Key="data/grades_data.csv")
   # Read job_ref as str - otherwise we get mixed types in the column (int and str) because of the two formats: '11111' and 'old_22222'
   old_grades_count_dataframe = read_csv(StringIO(old_grades_count_data['Body'].read().decode('utf-8')), dtype={'job_ref': str})
   
@@ -184,7 +186,7 @@ def lambda_handler(event, context):
   roles_lookup = s3_client.get_object(Bucket="civil-service-jobs", Key="role_lookup.csv")
   roles_lookup_dataframe = read_csv(StringIO(roles_lookup['Body'].read().decode('windows-1252')))
   role_type_groups = list(roles_lookup_dataframe.role_type_group.unique())
-  old_roles_count_data = s3_client.get_object(Bucket="civil-service-jobs", Key="token_count_tables/roles_data.csv")
+  old_roles_count_data = s3_client.get_object(Bucket="civil-service-jobs", Key="data/roles_data.csv")
   # Read job_ref as str - otherwise we get mixed types in the column (int and str) because of the two formats: '11111' and 'old_22222'
   old_roles_count_dataframe = read_csv(StringIO(old_roles_count_data['Body'].read().decode('utf-8')), dtype={'job_ref': str})
   
@@ -208,9 +210,9 @@ def lambda_handler(event, context):
   
   # Keywords: Download files and reorder contents where necessary for avoiding false positives
   
-  keywords = s3_client.get_object(Bucket="civil-service-jobs", Key="key_words.csv")
+  keywords = s3_client.get_object(Bucket="civil-service-jobs", Key="data/key_words_context.csv")
   keywords_dataframe = read_csv(StringIO(keywords['Body'].read().decode('windows-1252')))
-  old_keywords_count_data = s3_client.get_object(Bucket="civil-service-jobs", Key="token_count_tables/key_words_data.csv")
+  old_keywords_count_data = s3_client.get_object(Bucket="civil-service-jobs", Key="data/key_words_data.csv")
   # Read job_ref as str - otherwise we get mixed types in the column (int and str) because of the two formats: '11111' and 'old_22222'
   old_keywords_count_dataframe = read_csv(StringIO(old_keywords_count_data['Body'].read().decode('utf-8')), dtype={'job_ref': str})
   
@@ -325,10 +327,38 @@ def lambda_handler(event, context):
     'roles_data.csv': roles_dataframe
   }
   for filename, dataframe in token_count_tables.items():
-    destination = 'token_count_tables/' + filename
+    destination = 'data/' + filename
     if development:
       destination = 'test_folder/' + destination
   
     dataframe_as_csv = dataframe.to_csv(index=False, encoding='unicode')
     s3_client.put_object(Body=dataframe_as_csv, Bucket="civil-service-jobs", Key=destination)
   
+    #concatonate and upload the data
+
+    cleaned_data = "cleaned_data"
+    cleaned_data_files = set()
+    for object in s3_client.list_objects(Bucket="civil-service-jobs", Prefix=cleaned_data)['Contents']:
+        filename = object['Key'][len(cleaned_data):]
+        if (filename == cleaned_data) or (filename[-4:] != ".csv"):
+            continue
+        cleaned_data_files.add(filename)
+    
+    all_data = []
+    
+    for file in cleaned_data_files:
+        print(file)
+        data = s3_client.get_object(Bucket="civil-service-jobs", Key=f'{cleaned_data}{file}')
+        data = read_csv(StringIO(data['Body'].read().decode('windows-1252')))
+        all_data.append(data)
+        
+    all_cleaned_data = concat(all_data, sort=False)
+    
+    
+    output_file = 'data/cleaned_data.csv'
+    
+    all_data_as_csv = all_cleaned_data.to_csv(index=False, encoding='unicode')
+    s3_client.put_object(Body=all_data_as_csv, Bucket="civil-service-jobs", Key=output_file)
+  
+    
+    
