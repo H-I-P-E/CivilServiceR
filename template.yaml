@@ -6,6 +6,7 @@ Parameters:
     Type: AWS::SSM::Parameter::Value<String>
   DockerImage: 
     Type: String
+    Default: civilservicejobsexplorer
   DashboardName:
     Type: String
     Default: CivilServiceJobsExplorer
@@ -71,38 +72,61 @@ Resources:
       InstanceType: !Ref InstanceType
       KeyName: !Ref SSHKey
       IamInstanceProfile: !Ref DashboardInstanceProfile
-      SecurityGroups: !Ref DashboardSecurityGroup
+#       SecurityGroups: !Ref DashboardSecurityGroup
       UserData:
         Fn::Base64:
           !Sub
           - |
             #!/bin/bash
             aws ecr get-login --region ${AWS::Region} --no-include-email
-            docker run -p 80:3838 ${AWS::AccountId}.dkr.ecr.eu-west-2.amazonaws.com/${docker_image}:latest
+            docker run -p 80:3838 ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${docker_image}:latest
           - docker_image: !Ref DockerImage
             
 
   DashboardAutoScalingGroup:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
+      AvailabilityZones: !GetAZs AWS::Region
       AutoScalingGroupName: !Sub Dashboards-${DashboardName}
-      Cooldown: 10
+      Cooldown: 30
       MinSize: 0
       DesiredCapacity: 1
       MaxSize: 3
       HealthCheckGracePeriod: 300
       HealthCheckType: ELB
       LaunchConfigurationName: !Ref DashboardAutoScalingLaunchConfig
-      TargetGroupARNs:
-        - !Ref TargetGroup
-      TerminationPolicies: Default
+      LoadBalancerNames: !Ref DashboardLoadBalancer
       
-  TargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+  DashboardLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
     Properties:
-    
-    
-  ListenerRule:
-    Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Properties:
-      ListenerArn: !Ref LoadBalancer
+      Name: PathbasedALB
+      Listeners:
+        InstancePort: 80
+ #maybe need to change instanceport to 3838, but hopefully docker run -p 80:3838 takes care of that
+        LoadBalancerPort: 80
+        Protocol: https
+        #may need to change to http or tcp if it doesn;t work
+     
+     
+     
+#   DashboardSecurityGroup:
+#     Type: AWS::EC2::SecurityGroup
+#     Condition: CreateResource
+#     Properties:
+#       GroupDescription: Ingress and egress
+#       SecurityGroupIngress:
+#       - IpProtocol: https
+#         CidrIp: 0.0.0.0/0
+#         FromPort: 80
+#         ToPort: 80
+#       SecurityGroupEgress:
+#       - IpProtocol: https
+#         CidrIp: 0.0.0.0/0
+#         FromPort: 80
+#         ToPort: 80
+#       - IpProtocol: https
+#         CidrIp: 0.0.0.0/0
+#         FromPort: 3838
+#         ToPort: 3838
+ 
