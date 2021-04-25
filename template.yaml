@@ -60,7 +60,7 @@ Resources:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Path: /
-      Roles: DashboardRole
+      Roles: !Ref DashboardRole
       
       
   DashboardAutoScalingLaunchConfig:
@@ -71,7 +71,7 @@ Resources:
       InstanceType: !Ref InstanceType
       KeyName: !Ref SSHKey
       IamInstanceProfile: !Ref DashboardInstanceProfile
-      SecurityGroups: !Ref DashboardSecurityGroup TODO
+      SecurityGroups: !Ref DashboardSecurityGroup
       UserData:
         Fn::Base64:
           !Sub
@@ -94,7 +94,7 @@ Resources:
       HealthCheckType: ELB
       LaunchConfigurationName: !Ref DashboardAutoScalingLaunchConfig
       TargetGroupARNs:
-        - !Ref TargetGroup TODO
+        - !Ref TargetGroup
       TerminationPolicies: Default
       
   TargetGroup:
