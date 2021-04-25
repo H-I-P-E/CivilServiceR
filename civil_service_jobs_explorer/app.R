@@ -10,10 +10,21 @@ min_area_sum = 9
 HIPE_colour = "#73BFBD"
 app_title = "HIPE job search"
 external_only = F
+csv = F
 
 ####Data####
 
-data <- readRDS(".//data//cleaned_data.rds")
+if(csv){
+
+
+}else{
+  data <- readRDS(".//data//cleaned_data.rds")
+  grades_data <-  readRDS(".//data//grades_data.rds")
+  key_words_data <- readRDS(".//data//key_words.rds")
+  key_words_context <- readRDS(".//data//key_words_context.rds")
+  roles_data <- readRDS(".//data//roles_data.rds")
+}
+
 
 if(external_only){
   data <- data %>%
@@ -29,7 +40,7 @@ acronyms <- readr::read_csv(".//www//dept_acronyms.csv")
 grade_lookup <- readr::read_csv(".//www//grade_lookup.csv") %>%
   dplyr::select(label, order, name)
 
-grades_data <-  readRDS(".//data//grades_data.rds")%>%
+grades_data <-  grades_data %>%
   dplyr::filter(job_ref %in% refs) %>%
   dplyr::left_join(grade_lookup) %>%
   dplyr::mutate(label = name) %>%
@@ -39,15 +50,13 @@ factor(grades_data$label, levels = grades_data$order)
 
 grades <- unique(grade_lookup) %>% dplyr::arrange(desc(order)) %>%
   dplyr::pull(name)
-
-roles_data <-  readRDS(".//data//roles_data.rds")%>%
+#//civil_service_jobs_explorer
+roles_data <-  roles_data%>%
   dplyr::filter(job_ref %in% refs)
 
 roles <- unique(roles_data$label)
 
-key_words_context <- readRDS(".//data//key_words_context.rds")
-
-key_words_data <- readRDS(".//data//key_words.rds") %>%
+key_words_data <- key_words_data %>%
   dplyr::filter(job_ref %in% refs) %>%
   dplyr::left_join(key_words_context, by = c("label" = "label")) %>%
   dplyr::group_by(job_ref, `Cause area`) %>%
