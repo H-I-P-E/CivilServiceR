@@ -24,8 +24,7 @@ if(csv){
 
   data <-data %>%
     dplyr::mutate(number_of_posts =`Number of posts`) %>%
-    dplyr::mutate(closing_date =closingdate)
-
+    dplyr::mutate(closing_date =closingdate)}else{
   ldata <- readRDS(".//data//cleaned_data.rds")
   grades_data <-  readRDS(".//data//grades_data.rds")
   key_words_data <- readRDS(".//data//key_words.rds")
@@ -172,7 +171,7 @@ server <- function(input, output) {
 
   twelve_months_summary <- reactive({
     data <- data %>%
-      dplyr::filter(closing_date <= lubridate::today() - lubridate::years(1))
+      dplyr::filter(closing_date >= lubridate::today() - lubridate::years(1))
 
     if(!external_only){
       if(!input$include_internal){
