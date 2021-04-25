@@ -2,6 +2,7 @@ library(shiny)
 library(DT)
 library(shinythemes)
 library(plotly)
+library(readr)
 
 ####Parameters####
 
@@ -15,23 +16,31 @@ csv = F
 ####Data####
 
 if(csv){
+  data <- read_csv(".//data//cleaned_data.csv")
+  grades_data <-  read_csv(".//data//grades_data.csv")
+  key_words_data <- read_csv(".//data//key_words_data.csv")
+  key_words_context <- read_csv(".//data//key_words_context.csv")
+  roles_data <- read_csv(".//data//roles_data.csv")
 
+  data <-data %>%
+    dplyr::mutate(number_of_posts = pmax(number_of_posts, `Number of posts`, na.rm = T))
 
-}else{
-  data <- readRDS(".//data//cleaned_data.rds")
+  data$closing_date = lubridate::as_date(data$closing_date)
+  data$closing_date[is.na(data$closing_date)] <- data$closingdate[is.na(data$closing_date)]}else{
+  ldata <- readRDS(".//data//cleaned_data.rds")
   grades_data <-  readRDS(".//data//grades_data.rds")
   key_words_data <- readRDS(".//data//key_words.rds")
   key_words_context <- readRDS(".//data//key_words_context.rds")
   roles_data <- readRDS(".//data//roles_data.rds")
 }
-
-
+#//civil_service_jobs_explorer
 if(external_only){
   data <- data %>%
     dplyr::filter(approach %in% approachs)
 }
 
 refs <- data$job_ref
+
 
 departments <- unique(data$department) %>% sort()
 
@@ -94,6 +103,7 @@ ui <- fluidPage(
                     selectize = TRUE, width = NULL, size = NULL)),
         sliderInput("post_select", "Number of posts (within the advert):", 1, 100, value = c(1, 100)),
         h3(textOutput("text_description")),
+        HTML("<p style=\"text-align:center;font-size:20px\">Top 10 departments for number of posts matching your selection in the last 12 months:"),
         plotlyOutput("dept_plot")
       ),
       mainPanel(
@@ -238,7 +248,7 @@ server <- function(input, output) {
   })
 
   output$dept_plot <- renderPlotly({
-    my_data <- filtered()
+    my_data <- twelve_months_summary()
     grouped_data <- my_data %>%
       dplyr::group_by(department) %>%
       dplyr::summarise(number_of_posts = sum(number_of_posts, na.rm = T)) %>%
@@ -252,7 +262,6 @@ server <- function(input, output) {
                         aes(x = reorder(acronym, number_of_posts) , y = number_of_posts, tooltip = department)) +
       ggplot2::geom_bar(stat = "identity", fill = HIPE_colour)  +
       coord_flip()+
-      labs(title = "Top 10 departments for number of\nposts matching your selection")+
       theme(text =element_text(family = "Helvetica",
                                colour = HIPE_colour,
                                size = 14),
@@ -263,9 +272,7 @@ server <- function(input, output) {
             panel.background = element_rect(fill = NA),
             axis.line = element_line(colour = "black"),
             axis.text = element_text(colour = HIPE_colour),
-            plot.title = element_text(hjust = 0,
-                                      margin=margin(0,0,30,0)),
-            plot.margin=margin(c(30,0,0,0)))
+            plot.margin=margin(c(0,0,0,0)))
     ggplotly(p, tooltip = c("number_of_posts","tooltip")) %>% config(displayModeBar = F)
   })
 }
