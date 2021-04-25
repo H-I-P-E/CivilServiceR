@@ -150,6 +150,8 @@ def lambda_handler(event, context):
   
       wide_cleaned_dataframes_dictionary[filename] = DataFrame(jobs)
   
+  if(len(wide_cleaned_dataframes_dictionary) <1):
+      return
   all_cleaned_data_dataframe = concat(wide_cleaned_dataframes_dictionary.values()).drop_duplicates().reset_index(drop=True)
   
   descriptions_and_summaries_dataframe = DataFrame(descriptions_and_summaries)
@@ -346,7 +348,7 @@ def lambda_handler(event, context):
     
     for file in cleaned_data_files:
         print(file)
-        data = s3_client.get_object(Bucket="civil-service-jobs", Key=f'{destination}{file}')
+        data = s3_client.get_object(Bucket="civil-service-jobs", Key=f'{cleaned_data}{file}')
         data = read_csv(StringIO(data['Body'].read().decode('windows-1252')))
         all_data.append(data)
         

@@ -11,7 +11,7 @@ min_area_sum = 9
 HIPE_colour = "#73BFBD"
 app_title = "HIPE job search"
 external_only = F
-csv = F
+csv = T
 
 ####Data####
 
@@ -23,10 +23,9 @@ if(csv){
   roles_data <- read_csv(".//data//roles_data.csv")
 
   data <-data %>%
-    dplyr::mutate(number_of_posts = pmax(number_of_posts, `Number of posts`, na.rm = T))
+    dplyr::mutate(number_of_posts =`Number of posts`) %>%
+    dplyr::mutate(closing_date =closingdate)
 
-  data$closing_date = lubridate::as_date(data$closing_date)
-  data$closing_date[is.na(data$closing_date)] <- data$closingdate[is.na(data$closing_date)]}else{
   ldata <- readRDS(".//data//cleaned_data.rds")
   grades_data <-  readRDS(".//data//grades_data.rds")
   key_words_data <- readRDS(".//data//key_words.rds")
