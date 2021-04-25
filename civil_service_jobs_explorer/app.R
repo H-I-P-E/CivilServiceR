@@ -152,6 +152,44 @@ server <- function(input, output) {
 
   })
 
+  twelve_months_summary <- reactive({
+    data <- data %>%
+      dplyr::filter(closing_date <= lubridate::today() - lubridate::years(1))
+
+    if(!external_only){
+      if(!input$include_internal){
+        data <- data %>%
+          dplyr::filter(approach %in% approachs)
+      }
+    }else{
+      data <- data %>%
+        dplyr::filter(approach %in% approachs)
+    }
+
+    if(!is.null(input$cause_area)){
+      refs <- dplyr::filter(key_words_data, `Cause area` %in% input$cause_area) %>% dplyr::pull(job_ref)
+      data <-  dplyr::filter(data, job_ref %in% refs)}
+
+    if(!is.null(input$grade_select)){
+      refs <- dplyr::filter(grades_data, label %in% input$grade_select) %>% dplyr::pull(job_ref)
+      data <-  dplyr::filter(data, job_ref %in% refs)}
+
+    if(!is.null(input$role_select)){
+      refs <- dplyr::filter(roles_data, label %in% input$role_select) %>% dplyr::pull(job_ref)
+      data <-  dplyr::filter(data, job_ref %in% refs)}
+
+    if(!is.null( input$dept_select)){
+      data <-  dplyr::filter(data, department %in% input$dept_select)}
+
+
+    data <-  dplyr::filter(data, (number_of_posts >= input$post_select[[1]] & (number_of_posts <= input$post_select[[2]] | input$post_select[[2]]  == 100)) | is.na(number_of_posts))
+
+
+    data <- data %>%
+      tidyr::replace_na(list(number_of_posts = 1))
+
+  })
+
   date_filtered <- reactive({
     if(input$select_current){
       my_data <- filtered()
@@ -180,12 +218,14 @@ server <- function(input, output) {
 
   output$text_description <- renderText ({
 
+    jobs <- sum(twelve_months_summary()$number_of_posts, na.rm= T)
+    adverts <- nrow(twelve_months_summary())
+    rate <- as.integer(jobs/12)
 
-    jobs <- sum(filtered()$number_of_posts, na.rm= T)
-    rate <- as.integer(jobs/months_in_data)
-
-    paste0("In the past ", prettyNum(months_in_data,big.mark=",",scientific=FALSE), " months, there have been ",prettyNum(jobs,big.mark=",",scientific=FALSE), " posts matching your search criteria,
-            this is a rate of ", prettyNum(rate,big.mark=",",scientific=FALSE), " posts per month")
+    paste0("In the past 12 months, there have been ",prettyNum(jobs,big.mark=",",scientific=FALSE),
+           " posts matching your search criteria, (across ",prettyNum(adverts,big.mark=",",scientific=FALSE) ,
+           " adverts), this is a rate of ", prettyNum(rate,big.mark=",",scientific=FALSE),
+           " posts per month")
   })
 
   output$dept_plot <- renderPlotly({
