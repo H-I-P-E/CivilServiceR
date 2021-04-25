@@ -2,8 +2,6 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 
 Parameters:
-  AccountId:
-    Type: AWS::SSM::Parameter::Value<String>
   SSHKey:
     Type: AWS::SSM::Parameter::Value<String>
   DockerImage: 
@@ -42,7 +40,7 @@ Resources:
           - Effect: Allow
             Action: ssm:GetParameter
             Resource:
-            - !Sub arn:aws:ssm:${AWS::Region}:${AccountId}:parameter/${DashboardName}/*
+            - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DashboardName}/*
           - Effect: Allow
             Action:
             - logs:CreateLogGroup
