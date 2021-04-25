@@ -11,7 +11,7 @@ min_area_sum = 9
 HIPE_colour = "#73BFBD"
 app_title = "HIPE job search"
 external_only = F
-csv = F
+csv = T
 
 ####Data####
 
