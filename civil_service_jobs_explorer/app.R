@@ -11,7 +11,7 @@ min_area_sum = 9
 HIPE_colour = "#73BFBD"
 app_title = "HIPE job search"
 external_only = F
-csv = T
+csv = F
 
 ####Data####
 
@@ -25,7 +25,7 @@ if(csv){
   data <-data %>%
     dplyr::mutate(number_of_posts =`Number of posts`) %>%
     dplyr::mutate(closing_date =closingdate)}else{
-  ldata <- readRDS(".//data//cleaned_data.rds")
+  data <- readRDS(".//data//cleaned_data.rds")
   grades_data <-  readRDS(".//data//grades_data.rds")
   key_words_data <- readRDS(".//data//key_words.rds")
   key_words_context <- readRDS(".//data//key_words_context.rds")
