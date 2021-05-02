@@ -76,7 +76,7 @@ Resources:
           !Sub
           - |
             #!/bin/bash
-            aws ecr get-login --region ${AWS::Region} --no-include-email
+            $(aws ecr get-login --region ${AWS::Region} --no-include-email)
             docker run -p 80:3838 ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${docker_image}:latest
           - docker_image: !Ref DockerImage
             
