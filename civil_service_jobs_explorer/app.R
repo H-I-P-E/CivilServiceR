@@ -3,7 +3,7 @@ library(DT)
 library(shinythemes)
 library(plotly)
 library(readr)
-
+library(botor)
 ####Parameters####
 
 approachs <- c("External")
@@ -12,15 +12,20 @@ HIPE_colour = "#73BFBD"
 app_title = "HIPE job search"
 external_only = F
 csv = T
+DEBUG = F
 
 ####Data####
 
+if(DEBUG){
+  botor(aws_access_key_id, aws_secret_access_key, region_name = 'eu-west-2')
+}
+
 if(csv){
-  data <- read_csv(".//data//cleaned_data.csv")
-  grades_data <-  read_csv(".//data//grades_data.csv")
-  key_words_data <- read_csv(".//data//key_words_data.csv")
-  key_words_context <- read_csv(".//data//key_words_context.csv")
-  roles_data <- read_csv(".//data//roles_data.csv")
+  data <- botor::s3_read("s3://civil-service-jobs/data/cleaned_data.csv", read_csv)
+  grades_data <-  botor::s3_read("s3://civil-service-jobs/data/grades_data.csv", read_csv)
+  key_words_data <- botor::s3_read("s3://civil-service-jobs/data/key_words_data.csv", read_csv)
+  key_words_context <- botor::s3_read("s3://civil-service-jobs/data/key_words_context.csv", read_csv)
+  roles_data <- botor::s3_read("s3://civil-service-jobs/data/roles_data.csv", read_csv)
 
   data <-data %>%
     dplyr::mutate(number_of_posts =`Number of posts`) %>%
