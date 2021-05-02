@@ -211,7 +211,7 @@ def lambda_handler(event, context):
     print(new_ids["job_ref"])
     
     #New data file name is the current data and the min and max job ref
-    min_ref = str(new_ids["job_ref"][1])
+    min_ref = str(new_ids["job_ref"][0])
     max_ref = str(new_ids["job_ref"][len(new_ids)-1])
     new_file_name = "_".join([str(date.today()), max_ref, min_ref, ".csv"])
     
