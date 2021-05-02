@@ -17,7 +17,7 @@ RUN Rscript -e "install.packages(\
         'tidyr', \
         'ggplot2', \
         'magrittr',\
-        'lubridate'\
+        'lubridate',\
         'botor'\
     ),\
     repos = c(CRAN = 'http://cran.rstudio.com')\
