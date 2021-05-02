@@ -104,8 +104,8 @@ Resources:
         - !Sub "${AWS::Region}a"
       Listeners:
         - InstancePort: 80
-          LoadBalancerPort: 80
-          Protocol: "HTTP"
+          LoadBalancerPort: 443
+          Protocol: "HTTPS"
       # SecurityGroups:
       #   - !Ref LoadBalancerSecurityGroup
      
