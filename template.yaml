@@ -70,7 +70,7 @@ Resources:
       ImageId: !Ref AmiId
       InstanceType: !Ref InstanceType
       IamInstanceProfile: !Ref DashboardInstanceProfile
-#       SecurityGroups: !Ref DashboardSecurityGroup
+      # SecurityGroups: !Ref DashboardSecurityGroup
       UserData:
         Fn::Base64:
           !Sub
@@ -106,28 +106,40 @@ Resources:
         - InstancePort: 80
           LoadBalancerPort: 80
           Protocol: "HTTP"
-        #may need to change to http or tcp if it doesn;t work
- #maybe need to change instanceport to 3838, but hopefully docker run -p 80:3838 takes care of that
+      # SecurityGroups:
+      #   - !Ref LoadBalancerSecurityGroup
      
-     
-     
-#   DashboardSecurityGroup:
-#     Type: AWS::EC2::SecurityGroup
-#     Condition: CreateResource
-#     Properties:
-#       GroupDescription: Ingress and egress
-#       SecurityGroupIngress:
-#       - IpProtocol: https
-#         CidrIp: 0.0.0.0/0
-#         FromPort: 80
-#         ToPort: 80
-#       SecurityGroupEgress:
-#       - IpProtocol: https
-#         CidrIp: 0.0.0.0/0
-#         FromPort: 80
-#         ToPort: 80
-#       - IpProtocol: https
-#         CidrIp: 0.0.0.0/0
-#         FromPort: 3838
-#         ToPort: 3838
+  # LoadBalancerSecurityGroup: 
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Ingress and egress for loadbalancer
+    #   SecurityGroupIngress:
+    #   - IpProtocol: http
+    #     CidrIp: 0.0.0.0/0
+    #     FromPort: 80
+    #     ToPort: 80
+    #   SecurityGroupEgress:
+    #   - IpProtocol: http
+    #     CidrIp: 0.0.0.0/0
+    #     FromPort: 80
+    #     ToPort: 80
+  
+  # DashboardSecurityGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Ingress and egress for dashboard instance
+  #     SecurityGroupIngress:
+  #     - IpProtocol: http
+  #       SourceSecurityGroupName: !Ref LoadBalancerSecurityGroup
+  #       FromPort: 80
+  #       ToPort: 80
+  #     SecurityGroupEgress:
+  #     - IpProtocol: http
+  #       CidrIp: 0.0.0.0/0
+  #       FromPort: 80
+  #       ToPort: 80
+  #     - IpProtocol: http
+  #       CidrIp: 0.0.0.0/0
+  #       FromPort: 3838
+  #       ToPort: 3838
  
