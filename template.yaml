@@ -76,6 +76,32 @@ Resources:
           !Sub
           - |
             #!/bin/bash
+            IFS='' read -r -d '' LOGS_CONFIG <<"EOF"
+            {
+              "agent": {
+                "metrics_collection_interval": 60,
+                "logfile": "/var/log/amazon-cloudwatch-agent.log",
+                "debug": false
+              },
+              "logs": {
+                "logs_collected": {
+                  "files": {
+                    "collect_list": [
+                      {
+                        "file_path": "/var/log/user-data.log",
+                        "log_group_name": "dashboards",
+                        "log_stream_name": "${DashboardName}"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+            EOF
+            echo "$LOGS_CONFIG" > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+            
+            exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+            /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
             $(aws ecr get-login --region ${AWS::Region} --no-include-email)
             docker run -p 80:3838 ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${docker_image}:latest
           - docker_image: !Ref DockerImage
