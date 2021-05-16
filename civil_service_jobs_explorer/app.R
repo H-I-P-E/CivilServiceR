@@ -28,7 +28,7 @@ if(csv){
   roles_data <- botor::s3_read("s3://civil-service-jobs/data/roles_data.csv", read_csv)
 
   data <-data %>%
-    dplyr::mutate(number_of_posts =`Number of posts`) %>%
+    dplyr::mutate(number_of_posts =as.numeric(`Number of posts`)) %>%
     dplyr::mutate(closing_date =closingdate)}else{
   data <- readRDS(".//data//cleaned_data.rds")
   grades_data <-  readRDS(".//data//grades_data.rds")
@@ -240,7 +240,8 @@ server <- function(input, output) {
 
   output$text_description <- renderText ({
 
-    jobs <- sum(twelve_months_summary()$number_of_posts, na.rm= T)
+    jobs <- sum(as.numeric(twelve_months_summary()$number_of_posts, na.rm= T))
+    print(twelve_months_summary()$number_of_posts)
     adverts <- nrow(twelve_months_summary())
     rate <- as.integer(jobs/12)
 
@@ -282,4 +283,3 @@ server <- function(input, output) {
 
 # Run the application
 shinyApp(ui = ui, server = server)
-
