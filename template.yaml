@@ -1,0 +1,171 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+  DockerImage: 
+    Type: String
+    Default: civilservicejobsexplorer
+  DashboardName:
+    Type: String
+    Default: CivilServiceJobsExplorer
+  BucketName:
+    Type: String
+    Default: civil-service-jobs
+  AmiId:
+    Type: String
+    Default: ami-0dc2973b0c5a146f8
+  InstanceType:
+    Type: String
+    Default: t3.small
+
+Resources:
+
+  DashboardRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Principal: 
+            Service: ec2.amazonaws.com
+          Action: sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: DashboardPolicy
+        PolicyDocument:
+          Version: 2012-10-17
+          Statement:
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource:
+            - !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${DashboardName}/*
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:DescribeLogStreams
+            Resource: "*"
+          - Effect: Allow
+            Action: ecr:*
+            Resource: "*"
+          - Effect: Allow
+            Action: s3:*
+            Resource: 
+            - !Sub arn:aws:s3:::${BucketName}*
+  
+  DashboardInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref DashboardRole
+      
+      
+  DashboardAutoScalingLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: true
+      ImageId: !Ref AmiId
+      InstanceType: !Ref InstanceType
+      IamInstanceProfile: !Ref DashboardInstanceProfile
+      # SecurityGroups: !Ref DashboardSecurityGroup
+      UserData:
+        Fn::Base64:
+          !Sub
+          - |
+            #!/bin/bash
+            IFS='' read -r -d '' LOGS_CONFIG <<"EOF"
+            {
+              "agent": {
+                "metrics_collection_interval": 60,
+                "logfile": "/var/log/amazon-cloudwatch-agent.log",
+                "debug": false
+              },
+              "logs": {
+                "logs_collected": {
+                  "files": {
+                    "collect_list": [
+                      {
+                        "file_path": "/var/log/user-data.log",
+                        "log_group_name": "dashboards",
+                        "log_stream_name": "${DashboardName}"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+            EOF
+            echo "$LOGS_CONFIG" > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+            
+            exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+            /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json -s
+            $(aws ecr get-login --region ${AWS::Region} --no-include-email)
+            docker run -p 80:3838 ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${docker_image}:latest
+          - docker_image: !Ref DockerImage
+            
+
+  DashboardAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+        - !Sub "${AWS::Region}a"
+      AutoScalingGroupName: !Sub Dashboards-${DashboardName}
+      Cooldown: 30
+      MinSize: 0
+      DesiredCapacity: 1
+      MaxSize: 3
+      HealthCheckGracePeriod: 300
+      HealthCheckType: ELB
+      LaunchConfigurationName: !Ref DashboardAutoScalingLaunchConfig
+      LoadBalancerNames:
+        - !Ref DashboardLoadBalancer
+      
+  DashboardLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      AvailabilityZones:
+        - !Sub "${AWS::Region}a"
+      Listeners:
+        - InstancePort: 80
+          LoadBalancerPort: 443
+          Protocol: "HTTPS"
+      # SecurityGroups:
+      #   - !Ref LoadBalancerSecurityGroup
+     
+  # LoadBalancerSecurityGroup: 
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Ingress and egress for loadbalancer
+    #   SecurityGroupIngress:
+    #   - IpProtocol: http
+    #     CidrIp: 0.0.0.0/0
+    #     FromPort: 80
+    #     ToPort: 80
+    #   SecurityGroupEgress:
+    #   - IpProtocol: http
+    #     CidrIp: 0.0.0.0/0
+    #     FromPort: 80
+    #     ToPort: 80
+  
+  # DashboardSecurityGroup:
+  #   Type: AWS::EC2::SecurityGroup
+  #   Properties:
+  #     GroupDescription: Ingress and egress for dashboard instance
+  #     SecurityGroupIngress:
+  #     - IpProtocol: http
+  #       SourceSecurityGroupName: !Ref LoadBalancerSecurityGroup
+  #       FromPort: 80
+  #       ToPort: 80
+  #     SecurityGroupEgress:
+  #     - IpProtocol: http
+  #       CidrIp: 0.0.0.0/0
+  #       FromPort: 80
+  #       ToPort: 80
+  #     - IpProtocol: http
+  #       CidrIp: 0.0.0.0/0
+  #       FromPort: 3838
+  #       ToPort: 3838
+ 
